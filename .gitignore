@@ -1,1 +1,35 @@
+# ---- ENTORNOS VIRTUALES ----
 .venv/
+venv/
+env/
+
+# ---- ARCHIVOS DE PYTHON ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# ---- CONFIGURACIONES DE EDITORES ----
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ---- ARCHIVOS DEL SISTEMA ----
+.DS_Store
+Thumbs.db
+
+# ---- ARCHIVOS TEMPORALES ----
+*.log
+*.tmp
+*.bak
+
+# ---- DEPENDENCIAS Y COMPILADOS ----
+build/
+dist/
+*.egg-info/
+*.egg
+
+# ---- CONFIGURACIÓN PERSONAL ----
+.env

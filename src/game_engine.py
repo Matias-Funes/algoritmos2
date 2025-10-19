@@ -3,9 +3,10 @@ import sys
 from .character import Character
 from .world import World
 from . import constants
+from .game_states import GameState
+
 
 ##comandos para empezar a trabjar en git bash: 
-#cd /c/Users/Mati/ProyectoAlgoritmos2
 #source .venv/Scripts/activate
 #python rescue_simulator.py
 
@@ -22,39 +23,47 @@ def main():
     clock = pygame.time.Clock()
     world = World(constants.WIDTH, constants.HEIGHT)
     character = Character(constants.WIDTH//2, constants.HEIGHT//2)  
-
+    current_state = GameState.PLAYING 
 
     while True:
-
-        #inicio la ventana
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
 
-        #defino los movimientos de los personajes
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            character.move(-5, 0, world)
-        if keys[pygame.K_RIGHT]:
-            character.move(5, 0, world)
-        if keys[pygame.K_UP]:
-            character.move(0, -5, world)
-        if keys[pygame.K_DOWN]:
-            character.move(0, 5, world)
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    if current_state == GameState.PLAYING:
+                        current_state = GameState.PAUSED
+                    else:
+                        current_state = GameState.PLAYING
+                # mover por teclas: una celda
+                if current_state == GameState.PLAYING:
+                    start = world.pixel_to_cell(character.x, character.y)
+                    if event.key == pygame.K_LEFT:
+                        character.move_to_cell(start[0] - 1, start[1], world)
+                    if event.key == pygame.K_RIGHT:
+                        character.move_to_cell(start[0] + 1, start[1], world)
+                    if event.key == pygame.K_UP:
+                        character.move_to_cell(start[0], start[1] - 1, world)
+                    if event.key == pygame.K_DOWN:
+                        character.move_to_cell(start[0], start[1] + 1, world)
 
-        #dibujo todo
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and current_state == GameState.PLAYING:
+                mx, my = pygame.mouse.get_pos()
+                gx, gy = world.pixel_to_cell(mx, my)
+                if world.is_walkable(gx, gy):
+                    character.move_to_cell(gx, gy, world)
+
+        # lógica del juego
+        if current_state == GameState.PLAYING:
+            character.update(world)
+
+        # dibujo
         world.draw(screen)
-        #esta linea dibuja el personaje
         character.draw(screen)
-        #esta linea dibuja el inventario
         world.draw_inventory(screen, character)
-        #este comando actualiza la pantalla
-        pygame.display.flip()
 
-        #marco que los movimientos sean a 60 fps
+        pygame.display.flip()
         clock.tick(60)
 
-#este comando corre la funcion main
-if __name__ == "__main__":
-    main()

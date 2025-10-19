@@ -1,7 +1,7 @@
 # 🚀 Comandos Git Bash para trabajar en el proyecto de Algoritmos 2
 
 # 1. Entrar a la carpeta del proyecto (si ya está clonado)
-cd /c/Users/Matias-Funes/ProyectoAlgoritmos2
+cd (pongan la ruta)
 
 # 2. Clonar el repositorio (solo la primera vez)
 git clone https://github.com/Matias-Funes/algoritmos2.git
@@ -11,13 +11,11 @@ cd algoritmos2
 git branch
 
 # 4. Crear una nueva rama para trabajar
-git checkout -b tu-nombre-descripcion
-# Ejemplo:
-# git checkout -b juan-funcion-movimiento
+git checkout -b (nombre de la rama)
+
 # 4. Entrar a tu rama (si ya existe y querés trabajar en ella)
-git checkout tu-nombre-descripcion
-# Ejemplo:
-# git checkout juan-funcion-movimiento
+git checkout (nombre de la rama)
+
 
 
 # 5. Activar el entorno virtual (si aún no existe)

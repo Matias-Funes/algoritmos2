@@ -1,9 +1,14 @@
 #tamaños
 WIDTH, HEIGHT = 800, 600
-PLAYER = 40
+PLAYER = 20
 GRASS = 64
-TREE = 64
+TREE = 32
 PERSON = 32
+
+# tamaño de celda (tile) usado por la grid
+TILE = GRASS
+GRID_WIDTH = WIDTH // TILE
+GRID_HEIGHT = HEIGHT // TILE
 
 #colores
 WHITE = (255, 255, 255)
@@ -20,9 +25,11 @@ NUM_MERCH = 50
 
 # puntos
 POINTS_PERSON = 50
-POINTS_CLOTH = 5
-POINTS_FOOD = 10
-POINTS_MED = 20
+MERCH_POINTS = {
+    "clothes": 5,
+    "food": 10,
+    "medicine": 20
+}
 
 # distribución de mercancías (la suma debe ser NUM_MERCH)
 MERCH_COUNTS = {

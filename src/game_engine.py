@@ -30,7 +30,7 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-
+            #esto permite pausar y reanudar el juego con ESCAPE
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if current_state == GameState.PLAYING:
@@ -48,7 +48,7 @@ def main():
                         character.move_to_cell(start[0], start[1] - 1, world)
                     if event.key == pygame.K_DOWN:
                         character.move_to_cell(start[0], start[1] + 1, world)
-
+            #esto hace que el personaje se mueva a la celda clickeada
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and current_state == GameState.PLAYING:
                 mx, my = pygame.mouse.get_pos()
                 gx, gy = world.pixel_to_cell(mx, my)
@@ -63,7 +63,6 @@ def main():
         world.draw(screen)
         character.draw(screen)
         world.draw_inventory(screen, character)
-
         pygame.display.flip()
         clock.tick(60)
 

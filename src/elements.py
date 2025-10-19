@@ -2,7 +2,7 @@ from . import constants
 import pygame
 import os
 
-
+#estructuras del mundo del juego: árboles, personas, mercancías
 class Tree:
     def __init__(self, x, y):
         self.x = x
@@ -10,9 +10,11 @@ class Tree:
         self.points = 5  # cantidad de madera que el árbol puede proporcionar
         tree_path = os.path.join("assets", "images", "objects", "Tree.png")
         try:
+            # cargar imagen del árbol
             self.image = pygame.image.load(tree_path).convert_alpha()
             self.image = pygame.transform.scale(self.image, (constants.TREE, constants.TREE))
         except Exception:
+            # imagen de respaldo si falla la carga
             self.image = pygame.Surface((constants.TREE, constants.TREE), pygame.SRCALPHA)
             self.image.fill((34, 139, 34))
         self.size = self.image.get_width()
@@ -28,9 +30,11 @@ class Person:
         self.points = 50
         person_path = os.path.join("assets", "images", "objects", "persona.png")
         try:
+            # cargar imagen de la persona
             self.image = pygame.image.load(person_path).convert_alpha()
             self.image = pygame.transform.scale(self.image, (constants.PERSON, constants.PERSON))
         except Exception:
+            # imagen de respaldo si falla la carga
             self.image = pygame.Surface((constants.PERSON, constants.PERSON), pygame.SRCALPHA)
             self.image.fill((255, 220, 180))
         self.size = self.image.get_width()

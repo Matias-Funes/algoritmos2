@@ -1,8 +1,11 @@
+#este archivo contiene la implementación del algoritmo A* para la búsqueda de caminos
 import heapq
 
+#estimación heurística (distancia Manhattan)
 def heuristic(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
+#esto implementa el algoritmo A*
 def a_star(start, goal, world):
     # start, goal = (gx, gy)
     openq = []
@@ -10,6 +13,7 @@ def a_star(start, goal, world):
     came_from = {start: None}
     cost_so_far = {start: 0}
 
+#esto es el núcleo del algoritmo A*
     while openq:
         _, current = heapq.heappop(openq)
         if current == goal:
@@ -20,7 +24,7 @@ def a_star(start, goal, world):
                 current = came_from[current]
             path.reverse()
             return path
-
+#esta parte evalúa los vecinos
         for neighbor in world.get_neighbors(*current):
             new_cost = cost_so_far[current] + 1
             if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:

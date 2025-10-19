@@ -1,9 +1,10 @@
 #tamaños
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 900, 600
 PLAYER = 20
-GRASS = 64
-TREE = 32
-PERSON = 32
+GRASS = 30
+TREE = 25
+PERSON = 25
+MERCH_SIZE = 20
 
 # tamaño de celda (tile) usado por la grid
 TILE = GRASS
@@ -16,8 +17,8 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 BROWN = (139, 69, 19)
 
-# nuevos tamaños y cantidades
-MERCH_SIZE = 32
+# cantidades
+
 
 NUM_TREES = 10
 NUM_PEOPLE = 10

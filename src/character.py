@@ -4,6 +4,7 @@ import pygame
 import os
 import math
 
+# personaje controlado por el jugador
 class Character:
     def __init__(self, x, y):
         # alinear posición a la grid

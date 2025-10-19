@@ -35,7 +35,7 @@ git add .
 git commit -m "Descripción corta de lo que hiciste"
 
 # 10. Subir los cambios a tu rama en GitHub
-git push origin tu-nombre-descripcion
+git push origin (nombre de rama)
 # Ejemplo:
 # git push origin juan-funcion-movimiento
 

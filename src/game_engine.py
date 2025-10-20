@@ -6,7 +6,8 @@ from . import constants
 from .game_states import GameState
 
 
-##comandos para empezar a trabjar en git bash: 
+##comandos para empezar a trabjar en git bash:
+# cd ~/rescue_simulator 
 #source .venv/Scripts/activate
 #python rescue_simulator.py
 

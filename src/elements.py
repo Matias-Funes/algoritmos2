@@ -1,6 +1,7 @@
 from . import constants
 import pygame
 import os
+import math
 
 #estructuras del mundo del juego: árboles, personas, mercancías
 class Tree:
@@ -69,3 +70,65 @@ class Merchandise:
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
 
+class Mine:
+    def __init__(self, x, y, mine_type):
+        self.x = x
+        self.y = y
+        self.type = mine_type
+        self.active = True  # Para minas G1
+        self.toggle_timer = 0  # Para minas G1
+        self.size = 10  # Tamaño visual de la mina
+        
+        # Cargar imagen según tipo
+        mine_path = os.path.join("assets", "images", "objects", f"mine_{mine_type}.png")
+        try:
+            self.image = pygame.image.load(mine_path).convert_alpha()
+            self.image = pygame.transform.scale(self.image, (self.size, self.size))
+        except Exception:
+            self.image = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
+            self.image.fill(constants.MINE_COLORS[mine_type])
+
+    def update(self):
+        # Solo para minas G1
+        if self.type == "G1":
+            self.toggle_timer += 1
+            if self.toggle_timer >= constants.G1_TOGGLE_TIME:
+                self.active = not self.active
+                self.toggle_timer = 0
+
+    def draw(self, screen):
+        if not self.active:
+            return
+            
+        # Dibujar la mina
+        screen.blit(self.image, (self.x, self.y))
+        
+        # Debug: visualizar área de efecto
+        if constants.DEBUG_MODE:
+            radius = constants.MINE_TYPES[self.type]["radius"]
+            cx = self.x + self.size/2
+            cy = self.y + self.size/2
+            if self.type in ["O1", "O2", "G1"]:
+                pygame.draw.circle(screen, constants.MINE_COLORS[self.type], (int(cx), int(cy)), radius, 1)
+            elif self.type == "T1":
+                pygame.draw.rect(screen, constants.MINE_COLORS[self.type],
+                             (cx - radius, cy - 2, radius * 2, 4), 1)
+            elif self.type == "T2":
+                pygame.draw.rect(screen, constants.MINE_COLORS[self.type],
+                                 (cx - 2, cy - radius, 4, radius * 2), 1)
+
+
+    def check_collision(self, px, py):
+        if not self.active:
+            return False
+            
+        radius = constants.MINE_TYPES[self.type]["radius"]
+        cx = self.x + self.size/2
+        cy = self.y + self.size/2
+        if self.type in ["O1", "O2", "G1"]:
+            return math.hypot(px - cx, py - cy) <= radius
+        elif self.type == "T1":
+            return abs(py - self.y) <= 2 and abs(px - self.x) <= radius
+        elif self.type == "T2":
+            return abs(px - self.x) <= 2 and abs(py - self.y) <= radius
+        return False

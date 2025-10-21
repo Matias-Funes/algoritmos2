@@ -1,8 +1,10 @@
 from . import constants
 import pygame
-from .elements import Tree, Person, Merchandise
+from .elements import Tree, Person, Merchandise, Mine
 import random 
 import os
+import math
+
 
 
 class World:
@@ -68,6 +70,69 @@ class World:
 
 
 
+        # Lista de minas
+        self.mines = []
+        self.init_mines()
+    
+    def init_mines(self):
+        """Inicializa las minas en posiciones aleatorias"""
+        self.mines.clear()
+        
+        for mine_type, count in constants.MINES_COUNT.items():
+            for _ in range(count):
+                attempts = 0
+                while attempts < 200:
+                    gx = random.randint(0, constants.GRID_WIDTH - 1)
+                    gy = random.randint(0, constants.GRID_HEIGHT - 1)
+                    # Solo celdas libres
+                    if self.grid[gy][gx] != 0:
+                        attempts += 1
+                        continue
+                
+                    # Convertir a píxeles alineados a la cuadrícula
+                    px, py = self.cell_to_pixel(gx, gy)
+                
+                    # Verificar distancia a otras minas
+                    too_close = False
+                    for mine in self.mines:
+                        if math.hypot(px - mine.x, py - mine.y) < constants.TILE:
+                            too_close = True
+                            break
+                        
+                    if not too_close:
+                        self.mines.append(Mine(px, py, mine_type))
+                        self.grid[gy][gx] = 4  # 4 = mina
+                        break
+                    
+                    attempts += 1
+                    
+    def update_g1_mines(self):
+        """Actualiza elementos dinámicos del mundo"""
+        for mine in self.mines:
+            if mine.type == "G1":
+                mine.update()
+
+    def relocate_g1_mines(self):
+        """Reubica todas las minas G1 a nuevas celdas libres de la cuadrícula."""
+        for mine in self.mines:
+            if mine.type == "G1":
+                # Liberar la celda anterior
+                gx_old, gy_old = self.pixel_to_cell(mine.x, mine.y)
+                if 0 <= gx_old < constants.GRID_WIDTH and 0 <= gy_old < constants.GRID_HEIGHT:
+                    self.grid[gy_old][gx_old] = 0
+
+                # Buscar una nueva posición válida
+                attempts = 0
+                while attempts < 200:
+                    gx = random.randint(0, constants.GRID_WIDTH - 1)
+                    gy = random.randint(0, constants.GRID_HEIGHT - 1)
+                    if self.grid[gy][gx] == 0:
+                        mine.x, mine.y = self.cell_to_pixel(gx, gy)
+                        self.grid[gy][gx] = 4  # 4 = mina
+                        break
+                    attempts += 1
+
+
 
     # Esta función convierte coordenadas en píxeles a coordenadas de la cuadrícula (celda) del mapa.
     def pixel_to_cell(self, x, y):
@@ -89,7 +154,7 @@ class World:
         if gx < 0 or gy < 0 or gx >= constants.GRID_WIDTH or gy >= constants.GRID_HEIGHT:
             return False
         # 0=libre, 2=persona, 3=merch son caminables
-        return self.grid[gy][gx] in (0, 2, 3)
+        return self.grid[gy][gx] in (0, 2, 3, 4)
     
 
 
@@ -125,27 +190,42 @@ class World:
         #El orden importa: primero fondo, luego árboles/personas/mercancías para que se vean por encima.
         for m in self.merch:
             m.draw(screen)
+        # Dibujar minas
+        for mine in self.mines:
+            mine.draw(screen)
 
     #Propósito: dibujar en pantalla el texto del inventario del personaje (puntos, rescatados y cantidades de recursos)
     #screen: Surface de Pygame donde se dibuja.character: objeto Character que contiene .inventory (diccionario).
-    def draw_inventory(self, screen, character):
-        #Paso 1 — preparar fuente y posición inicial:crea una fuente del sistema tamaño 24 (None = fuente por defecto).
-        font = pygame.font.SysFont(None, 24)
-        y = 10
-        x = 10
-        #Paso 2 — obtener inventario:
-        inv = character.inventory
+    def draw_inventory(self, screen, character, position="left",player_name="Jugador 1"):
+        font = pygame.font.SysFont(None, 17)
         
-        # Paso 3 — preparar líneas de texto:
+        # Determinar posición según el jugador
+        if position == "left":
+            x, y = 10, 10  # esquina superior izquierda
+            align = "left"
+        elif position == "right":
+            panel_width = 180  # ancho estimado del panel
+            x, y = constants.WIDTH - panel_width - 10, 10  # esquina superior derecha
+            align = "right"
+
+        inv = character.inventory
+
+        # preparar líneas de texto
         items = [
+            f"{player_name}",
             f"Puntos: {inv['points']}",
             f"Rescatados: {inv['rescued']}",
             f"Ropa: {inv['clothes']}",
             f"Comida: {inv['food']}",
             f"Medicina: {inv['medicine']}"
         ]
-        #Paso 4 — renderizar y blitear cada línea:
+
+        # dibujar cada línea
         for text in items:
             surf = font.render(text, True, constants.WHITE)
-            screen.blit(surf, (x, y))
+            if align == "left":
+                screen.blit(surf, (x, y))
+            else:
+                # Para la derecha: restamos el ancho del texto al panel
+                screen.blit(surf, (x + panel_width - surf.get_width(), y))
             y += 25

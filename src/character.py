@@ -25,6 +25,9 @@ class Character:
         self.path = []  # lista de celdas (gx,gy) para seguir
         self._move_speed = 4  # pixels por frame para interpolación
 
+        self.alive = True
+        self.respawn_point = (x, y)
+
     #copia los píxeles de una Surface origen (self.image) sobre otra Surface destino (screen) en la posición dada.
     def draw(self, screen):
         #self.image es una Surface (cargada con pygame.image.load o creada como fallback)
@@ -45,6 +48,10 @@ class Character:
 
     #Actualiza la posición del personaje y maneja la recolección de objetos y rescate de personas.
     def update(self, world):
+
+        if not self.alive:
+            return
+
         # Primero actualizar movimiento
         if self.path:
             next_cell = self.path[0]
@@ -65,6 +72,9 @@ class Character:
 
         # Convierte la posición actual en píxeles a coordenadas de celda
         current_cell = world.pixel_to_cell(self.x, self.y)
+
+        # Verificar colisiones con minas
+        self.check_mine_collision(world)
         
         # Revisar mercancías
         for merch in world.merch[:]:
@@ -99,6 +109,55 @@ class Character:
                     world.grid[person_cell[1]][person_cell[0]] = 0
                     print(f"¡Persona rescatada! Puntos: {self.inventory['points']}")  # Debug
 
+    def check_mine_collision(self, world):
+        if not self.alive:
+            return
 
+        # Rectángulo del personaje
+        char_rect = pygame.Rect(self.x, self.y, self.size, self.size)
+    
+        for mine in world.mines:
+            if not mine.active:
+                continue
+            
+            # Mina circular u otra forma
+            if mine.type in ["O1", "O2", "G1"]:
+                mine_center = (mine.x + mine.size/2, mine.y + mine.size/2)
+                radius = constants.MINE_TYPES[mine.type]["radius"]
+                # Colisión entre rectángulo y círculo
+                closest_x = max(char_rect.left, min(mine_center[0], char_rect.right))
+                closest_y = max(char_rect.top, min(mine_center[1], char_rect.bottom))
+                distance = math.hypot(closest_x - mine_center[0], closest_y - mine_center[1])
+                if distance <= radius:
+                    self.die()
+                    break
+            elif mine.type == "T1":
+                mine_rect = pygame.Rect(mine.x - constants.MINE_TYPES[mine.type]["radius"], 
+                                        mine.y - 2, 
+                                        constants.MINE_TYPES[mine.type]["radius"]*2, 4)
+                if char_rect.colliderect(mine_rect):
+                    self.die()
+                    break
+            elif mine.type == "T2":
+                mine_rect = pygame.Rect(mine.x - 2,
+                                        mine.y - constants.MINE_TYPES[mine.type]["radius"],
+                                        4,
+                                        constants.MINE_TYPES[mine.type]["radius"]*2)
+                if char_rect.colliderect(mine_rect):
+                    self.die()
+                    break
+                
+    def die(self):
+        """Maneja la muerte del personaje"""
+        self.alive = False
+        self.inventory = {"points": 0, "clothes": 0, "food": 0, "medicine": 0, "rescued": 0}
+        # Aquí podrías agregar efectos visuales, sonido, etc.
+        
+    def respawn(self):
+        """Revive al personaje en su punto inicial"""
+        self.alive = True
+        self.x, self.y = self.respawn_point
+        self.path = []
+        
 
 

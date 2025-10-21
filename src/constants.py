@@ -38,3 +38,36 @@ MERCH_COUNTS = {
     "food": 15,
     "medicine": 15
 }
+
+# Tipos de minas y sus radios
+MINE_TYPES = {
+    "O1": {"radius": 10, "type": "circular", "static": True},
+    "O2": {"radius": 5, "type": "circular", "static": True},
+    "T1": {"radius": 10, "type": "horizontal", "static": True},
+    "T2": {"radius": 5, "type": "vertical", "static": True},
+    "G1": {"radius": 7, "type": "circular", "static": False}
+}
+
+# Cantidad de minas por tipo
+MINES_COUNT = {
+    "O1": 3,
+    "O2": 3,
+    "T1": 3,
+    "T2": 3,
+    "G1": 3
+}
+
+# Tiempo para minas móviles (frames)
+G1_TOGGLE_TIME = 300  # 5 segundos a 60fps
+
+# Colores para debug/visualización
+MINE_COLORS = {
+    "O1": (255, 0, 0, 128),  # Rojo semi-transparente
+    "O2": (255, 100, 0, 128),  # Naranja semi-transparente
+    "T1": (255, 200, 0, 128),  # Amarillo semi-transparente
+    "T2": (255, 0, 100, 128),  # Rosa semi-transparente
+    "G1": (255, 0, 255, 128)   # Magenta semi-transparente
+}
+
+# Modo de depuración
+DEBUG_MODE = True  # Cambia a False para desactivar el modo de depuración

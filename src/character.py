@@ -71,8 +71,9 @@ class Character:
         # 👇 NUEVO BLOQUE: ejecutar estrategia si existe
         if self.strategy:
             if self.decision_cooldown <= 0:
-                self.strategy.decide(self, world)
-                self.decision_cooldown = 20  # cada X frames vuelve a decidir
+                action = self.strategy.decide(self, world)  # obtener acción
+                self._execute_action(action, world)         # ejecutar acción
+                self.decision_cooldown = 20
             else:
                 self.decision_cooldown -= 1
 

@@ -87,11 +87,11 @@ def main():
                         # player2.die()
             
             #esto hace que el personaje se mueva a la celda clickeada
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and current_state == GameState.PLAYING:
-                mx, my = pygame.mouse.get_pos()
-                gx, gy = world.pixel_to_cell(mx, my)
-                if world.is_walkable(gx, gy):
-                    player1.move_to_cell(gx, gy, world)
+            # if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and current_state == GameState.PLAYING:
+                # mx, my = pygame.mouse.get_pos()
+                # gx, gy = world.pixel_to_cell(mx, my)
+                # if world.is_walkable(gx, gy):
+                    # player1.move_to_cell(gx, gy, world)
 
         # lógica del juego
         if current_state == GameState.PLAYING:

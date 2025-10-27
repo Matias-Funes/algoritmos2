@@ -6,7 +6,7 @@ import math
 
 # personaje controlado por el jugador
 class Character:
-    def __init__(self, x, y):
+    def __init__(self, x, y, strategy=None):
         # Alinea la posición inicial a la cuadrícula: convierte píxeles a celda (división entera) y vuelve a píxeles. Así el personaje queda en la esquina superior izquierda de una celda completa.
         self.x = (x // constants.TILE) * constants.TILE
         self.y = (y // constants.TILE) * constants.TILE
@@ -27,6 +27,22 @@ class Character:
 
         self.alive = True
         self.respawn_point = (x, y)
+
+
+        self.strategy = strategy  # 👈 NUEVO: estrategia asignada al jugador
+        self.decision_cooldown = 0  # Control del tiempo entre decisiones
+
+        # 👇 NUEVOS ATRIBUTOS para compatibilidad con las estrategias
+        self.cargo = []  # lista de recursos recogidos
+        self.trips_left = 3  # cantidad de viajes permitidos antes de volver a la base
+        self.allowed_cargo = ["person", "clothes", "food", "medicine"]  # tipos de recursos que puede recoger
+        self.base_position = (x, y)  # posición de la base a donde volver
+
+    def distance_to(self, other):
+        """Retorna la distancia euclidiana desde este personaje a otro objeto que tenga x e y"""
+        dx = self.x - other.x
+        dy = self.y - other.y
+        return math.hypot(dx, dy)
 
     #copia los píxeles de una Surface origen (self.image) sobre otra Surface destino (screen) en la posición dada.
     def draw(self, screen):
@@ -51,6 +67,14 @@ class Character:
 
         if not self.alive:
             return
+        
+        # 👇 NUEVO BLOQUE: ejecutar estrategia si existe
+        if self.strategy:
+            if self.decision_cooldown <= 0:
+                self.strategy.decide(self, world)
+                self.decision_cooldown = 20  # cada X frames vuelve a decidir
+            else:
+                self.decision_cooldown -= 1
 
         # Primero actualizar movimiento
         if self.path:
@@ -108,6 +132,28 @@ class Character:
                     world.people.remove(person)
                     world.grid[person_cell[1]][person_cell[0]] = 0
                     print(f"¡Persona rescatada! Puntos: {self.inventory['points']}")  # Debug
+
+    def _execute_action(self, action, world):
+        """Ejecuta la acción devuelta por la estrategia."""
+        if not action or "type" not in action:
+            return
+
+        action_type = action["type"]
+        target = action.get("target")
+
+        if action_type == "move" and target:
+            gx, gy = world.pixel_to_cell(*target)
+            self.move_to_cell(gx, gy, world)
+
+        elif action_type == "return_to_base":
+            gx, gy = world.pixel_to_cell(*self.respawn_point)
+            self.move_to_cell(gx, gy, world)
+
+        elif action_type == "collect":
+            # ya se maneja en update al colisionar, pero podría agregarse lógica futura
+            pass
+
+        # Podés extender más acciones: "attack", "defend", etc.
 
     def check_mine_collision(self, world):
         if not self.alive:

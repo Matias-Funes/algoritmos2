@@ -79,6 +79,9 @@ class Mine:
         self.toggle_timer = 0  # Para minas G1
         self.size = 10  # Tamaño visual de la mina
         
+        # NUEVO: guardar el radio directamente en la instancia
+        self.radius = constants.MINE_TYPES[self.type]["radius"]
+        
         # Cargar imagen según tipo
         mine_path = os.path.join("assets", "images", "objects", f"mine_{mine_type}.png")
         try:

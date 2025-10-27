@@ -73,6 +73,39 @@ class World:
         # Lista de minas
         self.mines = []
         self.init_mines()
+
+        # Crear lista unificada de recursos (para estrategias)
+        self.resources = []
+
+        # Convertir tus objetos del mundo a formato genérico que las estrategias entienden
+        for m in self.merch:
+            m.type = m.kind  # Asegura que Merchandise tenga un atributo .type
+            m.value = constants.MERCH_POINTS.get(m.kind, 10)
+            self.resources.append(m)
+
+        for p in self.people:
+            p.type = "person"
+            p.value = constants.POINTS_PERSON
+            self.resources.append(p)
+    
+    def random_position(self):
+        """Devuelve una posición aleatoria válida en píxeles."""
+        while True:
+            gx = random.randint(0, constants.GRID_WIDTH - 1)
+            gy = random.randint(0, constants.GRID_HEIGHT - 1)
+            if self.is_walkable(gx, gy):
+                return self.cell_to_pixel(gx, gy)
+
+    def find_nearest_enemy(self, vehicle):
+        """Busca el vehículo enemigo más cercano (para estrategias agresivas)."""
+        enemies = [v for v in getattr(self, "vehicles", []) if v is not vehicle]
+        if not enemies:
+            return None
+
+        nearest = min(enemies, key=lambda e: math.hypot(vehicle.x - e.x, vehicle.y - e.y))
+        return nearest
+    
+    
     
     def init_mines(self):
         """Inicializa las minas en posiciones aleatorias"""
@@ -229,3 +262,5 @@ class World:
                 # Para la derecha: restamos el ancho del texto al panel
                 screen.blit(surf, (x + panel_width - surf.get_width(), y))
             y += 25
+
+

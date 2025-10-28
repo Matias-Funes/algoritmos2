@@ -225,47 +225,160 @@ class World:
         for mine in self.mines:
             mine.draw(screen)
 
-    def draw_team_stats(self, screen, vehicles, position="left", team_name="Equipo"):
-        """Dibuja estadísticas del equipo"""
-        font_title = pygame.font.SysFont(None, 20, bold=True)
-        font = pygame.font.SysFont(None, 17)
+    def draw_premium_hud(self, screen, player1_vehicles, player2_vehicles, game_time, max_game_time):
+        """HUD moderno y mejorado"""
+        import pygame
         
-        if position == "left":
-            x, y = 10, 10
-        else:
-            x, y = constants.WIDTH - 220, 10
-
-        # Calcular totales
-        total_score = sum(v.score for v in vehicles)
-        alive_count = sum(1 for v in vehicles if v.alive)
-        total_cargo = sum(len(v.cargo) for v in vehicles)
+        # Función auxiliar para paneles con sombra
+        def draw_panel(surface, x, y, width, height, color=(30, 30, 40)):
+            # Sombra
+            shadow_surf = pygame.Surface((width + 4, height + 4), pygame.SRCALPHA)
+            pygame.draw.rect(shadow_surf, (0, 0, 0, 100), (2, 2, width, height), border_radius=8)
+            surface.blit(shadow_surf, (x - 2, y - 2))
+            
+            # Panel
+            panel_surf = pygame.Surface((width, height), pygame.SRCALPHA)
+            pygame.draw.rect(panel_surf, color + (230,), (0, 0, width, height), border_radius=8)
+            pygame.draw.rect(panel_surf, (255, 255, 255, 50), (0, 0, width, height), 2, border_radius=8)
+            surface.blit(panel_surf, (x, y))
         
-        # Contar por tipo
-        jeeps_alive = sum(1 for v in vehicles if v.vehicle_type == "jeep" and v.alive)
-        motos_alive = sum(1 for v in vehicles if v.vehicle_type == "moto" and v.alive)
-        camiones_alive = sum(1 for v in vehicles if v.vehicle_type == "camion" and v.alive)
-        autos_alive = sum(1 for v in vehicles if v.vehicle_type == "auto" and v.alive)
-
-        # Dibujar panel con fondo semi-transparente
-        panel_surf = pygame.Surface((210, 180), pygame.SRCALPHA)
-        panel_surf.fill((0, 0, 0, 180))
-        screen.blit(panel_surf, (x-5, y-5))
-
-        lines = [
-            (f"{team_name}", font_title, constants.WHITE),
-            ("", font, constants.WHITE),
-            (f"PUNTOS: {total_score}", font, (255, 255, 0)),
-            (f"Vivos: {alive_count}/10", font, constants.WHITE),
-            (f"Carga actual: {total_cargo}", font, (150, 255, 150)),
-            ("", font, constants.WHITE),
-            (f"Jeeps: {jeeps_alive}/3", font, (200, 200, 200)),
-            (f"Motos: {motos_alive}/2", font, (200, 200, 200)),
-            (f"Camiones: {camiones_alive}/2", font, (200, 200, 200)),
-            (f"Autos: {autos_alive}/3", font, (200, 200, 200)),
+        font_title = pygame.font.SysFont("Arial", 18, bold=True)
+        font_normal = pygame.font.SysFont("Arial", 14)
+        font_small = pygame.font.SysFont("Arial", 12)
+        
+        # Calcular estadísticas
+        p1_score = sum(v.score for v in player1_vehicles)
+        p1_alive = sum(1 for v in player1_vehicles if v.alive)
+        p1_cargo = sum(len(v.cargo) for v in player1_vehicles)
+        
+        p2_score = sum(v.score for v in player2_vehicles)
+        p2_alive = sum(1 for v in player2_vehicles if v.alive)
+        p2_cargo = sum(len(v.cargo) for v in player2_vehicles)
+        
+        # Panel Jugador 1 (Izquierda)
+        panel_width = 200
+        panel_height = 160
+        draw_panel(screen, 10, 10, panel_width, panel_height, (50, 20, 20))
+        
+        y = 20
+        # Título
+        title = font_title.render("🔴 JUGADOR 1", True, (255, 150, 150))
+        screen.blit(title, (20, y))
+        y += 30
+        
+        # Puntos destacados
+        points = font_title.render(f"{p1_score}", True, (255, 215, 0))
+        screen.blit(points, (20, y))
+        pts_label = font_small.render("puntos", True, (200, 200, 200))
+        screen.blit(pts_label, (80, y + 5))
+        y += 30
+        
+        # Progreso
+        alive_text = font_normal.render(f"Vivos: {p1_alive}/10", True, (150, 255, 150) if p1_alive > 5 else (255, 150, 150))
+        screen.blit(alive_text, (20, y))
+        y += 22
+        
+        # Barra de vivos
+        bar_width = panel_width - 40
+        pygame.draw.rect(screen, (50, 50, 50), (20, y, bar_width, 8), border_radius=4)
+        alive_bar = int(bar_width * (p1_alive / 10))
+        color = (100, 255, 100) if p1_alive > 5 else (255, 100, 100)
+        pygame.draw.rect(screen, color, (20, y, alive_bar, 8), border_radius=4)
+        y += 18
+        
+        # Carga actual
+        cargo_text = font_normal.render(f"Carga: {p1_cargo}", True, (255, 255, 150))
+        screen.blit(cargo_text, (20, y))
+        y += 20
+        
+        # Tipos de vehículos con iconos
+        types = [
+            ("J", sum(1 for v in player1_vehicles if v.vehicle_type == "jeep" and v.alive), 3),
+            ("M", sum(1 for v in player1_vehicles if v.vehicle_type == "moto" and v.alive), 2),
+            ("C", sum(1 for v in player1_vehicles if v.vehicle_type == "camion" and v.alive), 2),
+            ("A", sum(1 for v in player1_vehicles if v.vehicle_type == "auto" and v.alive), 3)
         ]
-
-        for text, font_type, color in lines:
-            if text:
-                surf = font_type.render(text, True, color)
-                screen.blit(surf, (x, y))
-            y += 20
+        
+        x_offset = 20
+        for icon, alive, total in types:
+            color = (150, 255, 150) if alive == total else (255, 200, 100) if alive > 0 else (100, 100, 100)
+            text = font_small.render(f"{icon}:{alive}/{total}", True, color)
+            screen.blit(text, (x_offset, y))
+            x_offset += 45
+        
+        # Panel Jugador 2 (Derecha)
+        draw_panel(screen, constants.WIDTH - panel_width - 10, 10, panel_width, panel_height, (20, 20, 50))
+        
+        y = 20
+        x_base = constants.WIDTH - panel_width
+        
+        # Título
+        title = font_title.render("🔵 JUGADOR 2", True, (150, 150, 255))
+        screen.blit(title, (x_base, y))
+        y += 30
+        
+        # Puntos
+        points = font_title.render(f"{p2_score}", True, (255, 215, 0))
+        screen.blit(points, (x_base, y))
+        pts_label = font_small.render("puntos", True, (200, 200, 200))
+        screen.blit(pts_label, (x_base + 60, y + 5))
+        y += 30
+        
+        # Vivos
+        alive_text = font_normal.render(f"Vivos: {p2_alive}/10", True, (150, 255, 150) if p2_alive > 5 else (255, 150, 150))
+        screen.blit(alive_text, (x_base, y))
+        y += 22
+        
+        # Barra de vivos
+        pygame.draw.rect(screen, (50, 50, 50), (x_base, y, bar_width, 8), border_radius=4)
+        alive_bar = int(bar_width * (p2_alive / 10))
+        color = (100, 255, 100) if p2_alive > 5 else (255, 100, 100)
+        pygame.draw.rect(screen, color, (x_base, y, alive_bar, 8), border_radius=4)
+        y += 18
+        
+        # Carga
+        cargo_text = font_normal.render(f"Carga: {p2_cargo}", True, (255, 255, 150))
+        screen.blit(cargo_text, (x_base, y))
+        y += 20
+        
+        # Tipos
+        types = [
+            ("J", sum(1 for v in player2_vehicles if v.vehicle_type == "jeep" and v.alive), 3),
+            ("M", sum(1 for v in player2_vehicles if v.vehicle_type == "moto" and v.alive), 2),
+            ("C", sum(1 for v in player2_vehicles if v.vehicle_type == "camion" and v.alive), 2),
+            ("A", sum(1 for v in player2_vehicles if v.vehicle_type == "auto" and v.alive), 3)
+        ]
+        
+        x_offset = x_base
+        for icon, alive, total in types:
+            color = (150, 255, 150) if alive == total else (255, 200, 100) if alive > 0 else (100, 100, 100)
+            text = font_small.render(f"{icon}:{alive}/{total}", True, color)
+            screen.blit(text, (x_offset, y))
+            x_offset += 45
+        
+        # Barra de tiempo central
+        time_panel_width = 220
+        time_panel_x = (constants.WIDTH - time_panel_width) // 2
+        draw_panel(screen, time_panel_x, 10, time_panel_width, 45, (40, 40, 50))
+        
+        # Tiempo restante
+        time_left = max(0, (max_game_time - game_time) // 60)
+        time_color = (255, 100, 100) if time_left < 30 else (255, 255, 150)
+        time_text = font_title.render(f"⏱ {time_left}s", True, time_color)
+        screen.blit(time_text, (time_panel_x + 20, 18))
+        
+        # Barra de progreso de tiempo
+        time_bar_width = time_panel_width - 40
+        time_progress = 1 - (game_time / max_game_time)
+        pygame.draw.rect(screen, (50, 50, 50), (time_panel_x + 20, 42, time_bar_width, 6), border_radius=3)
+        pygame.draw.rect(screen, time_color, (time_panel_x + 20, 42, int(time_bar_width * time_progress), 6), border_radius=3)
+        
+        # Recursos restantes (mini panel abajo)
+        resources_remaining = len(self.resources)
+        if resources_remaining > 0:
+            mini_panel_width = 150
+            mini_panel_x = (constants.WIDTH - mini_panel_width) // 2
+            draw_panel(screen, mini_panel_x, constants.HEIGHT - 50, mini_panel_width, 35, (40, 50, 40))
+            
+            res_text = font_normal.render(f"📦 Recursos: {resources_remaining}", True, (150, 255, 150))
+            screen.blit(res_text, (mini_panel_x + 15, constants.HEIGHT - 38))

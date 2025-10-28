@@ -1,8 +1,11 @@
+# src/game_engine.py
+
 import pygame
 import sys
 from .world import World
 from . import constants
 from .game_states import GameState
+from .database import GameDatabase
 import math
 from config.strategies.player1_strategies import JeepStrategy, MotoStrategy, CamionStrategy, AutoStrategy
 from config.strategies.player2_strategies import AggressiveJeepStrategy, FastMotoStrategy, SupportCamionStrategy, BalancedAutoStrategy
@@ -204,7 +207,8 @@ def main():
     last_p1_alive = 10
     last_p2_alive = 10
 
-    while True:
+    def handle_events(self):
+        """Maneja todas las entradas del usuario (teclado, mouse, etc.)."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()

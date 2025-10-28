@@ -2,6 +2,8 @@ from . import constants
 import pygame
 import os
 import math
+import time
+
 
 #estructuras del mundo del juego: árboles, personas, mercancías
 class Tree:
@@ -121,14 +123,49 @@ class Mine:
     def check_collision(self, px, py):
         if not self.active:
             return False
-            
-        radius = constants.MINE_TYPES[self.type]["radius"]
+
         cx = self.x + self.size/2
         cy = self.y + self.size/2
-        if self.type in ["O1", "O2", "G1"]:
-            return math.hypot(px - cx, py - cy) <= radius
-        elif self.type == "T1":
-            return abs(py - self.y) <= 2 and abs(px - self.x) <= radius
-        elif self.type == "T2":
-            return abs(px - self.x) <= 2 and abs(py - self.y) <= radius
+        # Ajustamos para que solo explote si el jugador pisa el tile de la mina
+        # Suponiendo que `size` es el tamaño de un tile (por ejemplo 32 píxeles)
+        if abs(px - cx) < self.size / 2 and abs(py - cy) < self.size / 2:
+            return True
+
         return False
+
+
+class Explosion:
+    def __init__(self, cells):
+        """
+        cells: lista de tuplas (gx, gy) que indica las celdas afectadas
+        """
+        self.cells = cells
+        self.start_time = time.time()
+        self.duration = 1.5  # segundos que dura la explosión
+        fire_path = os.path.join("assets", "images", "objects", "fire.png")
+        try:
+            self.image = pygame.image.load(fire_path).convert_alpha()
+            self.image = pygame.transform.scale(self.image, (constants.TILE, constants.TILE))
+        except Exception:
+            self.image = pygame.Surface((constants.TILE, constants.TILE), pygame.SRCALPHA)
+            self.image.fill((255, 50, 0))  # fallback rojo
+        self.finished = False
+
+    def update(self, world):
+        """Devuelve True si la explosión terminó"""
+        now = time.time()
+        if now - self.start_time >= self.duration:
+            # Limpiar todas las celdas afectadas
+            for gx, gy in self.cells:
+                world.grid[gy][gx] = 0  # libera celda
+                # Remover objetos de ese lugar
+                world.trees = [t for t in world.trees if world.pixel_to_cell(t.x, t.y) != (gx, gy)]
+                world.people = [p for p in world.people if world.pixel_to_cell(p.x, p.y) != (gx, gy)]
+                world.merch = [m for m in world.merch if world.pixel_to_cell(m.x, m.y) != (gx, gy)]
+            self.finished = True
+        return self.finished
+
+    def draw(self, screen, world):
+        for gx, gy in self.cells:
+            px, py = world.cell_to_pixel(gx, gy)
+            screen.blit(self.image, (px, py))

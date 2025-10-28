@@ -1,6 +1,6 @@
 from . import constants
 import pygame
-from .elements import Tree, Person, Merchandise, Mine
+from .elements import Tree, Person, Merchandise, Mine, Explosion
 import random 
 import os
 import math
@@ -9,8 +9,9 @@ import math
 
 class World:
     def __init__(self, width, height):
-        self.width = width
-        self.height = height
+        self.width = width # ancho del mundo en celdas
+        self.height = height # alto del mundo en celdas
+        self.explosions = []  # lista de explosiones activas
 
         # grid: 0 libre, 1 árbol/obstáculo, 2 persona, 3 Mercancía
         self.grid = [[0 for _ in range(constants.GRID_WIDTH)] for _ in range(constants.GRID_HEIGHT)]
@@ -106,11 +107,36 @@ class World:
                     
                     attempts += 1
                     
-    def update_g1_mines(self):
+    def update(self, players):
         """Actualiza elementos dinámicos del mundo"""
+        # Mover minas móviles tipo G1
         for mine in self.mines:
             if mine.type == "G1":
                 mine.update()
+
+        # Revisar colisiones jugador-mina (explota solo al pisar la celda exacta)
+        for player in players:
+            gx_p, gy_p = self.pixel_to_cell(player.x, player.y)
+            for mine in self.mines[:]:
+                gx_m, gy_m = self.pixel_to_cell(mine.x, mine.y)
+                if (gx_p, gy_p) == (gx_m, gy_m):  # 💥 solo explota si pisa la celda exacta
+                    self.detonate_mine(mine)
+
+        # Actualizar explosiones activas
+        for explosion in self.explosions[:]:
+            explosion.update(self)
+            if explosion.finished:
+                for gx, gy in explosion.cells:
+                    self.grid[gy][gx] = 0
+                    self.trees = [tree for tree in self.trees 
+                                  if self.pixel_to_cell(tree.x, tree.y) != (gx, gy)]
+                    self.people = [person for person in self.people 
+                                   if self.pixel_to_cell(person.x, person.y) != (gx, gy)]
+                    self.merch = [m for m in self.merch 
+                                  if self.pixel_to_cell(m.x, m.y) != (gx, gy)]
+                self.explosions.remove(explosion)
+
+
 
     def relocate_g1_mines(self):
         """Reubica todas las minas G1 a nuevas celdas libres de la cuadrícula."""
@@ -134,10 +160,41 @@ class World:
 
 
 
+
+
+
+    def detonate_mine(self, mine):
+        """Crea una explosión con forma circular según el tipo de mina"""
+        radius = constants.MINE_TYPES[mine.type]["radius"]
+        gx_c, gy_c = self.pixel_to_cell(mine.x, mine.y)
+
+        affected_cells = []
+
+        # Convertimos radio a celdas (por ejemplo, si TILE = 32, radius 224 → 7 celdas)
+        radius_cells = radius // constants.TILE
+
+        # Mismo cálculo para todos los tipos: queremos una bola real
+        for dx in range(-radius_cells, radius_cells + 1):
+            for dy in range(-radius_cells, radius_cells + 1):
+                gx = gx_c + dx
+                gy = gy_c + dy
+                # Distancia en celdas, no en píxeles
+                dist = math.sqrt(dx ** 2 + dy ** 2)
+                if dist <= radius_cells and 0 <= gx < constants.GRID_WIDTH and 0 <= gy < constants.GRID_HEIGHT:
+                    affected_cells.append((gx, gy))
+
+        # Crear explosión visual
+        self.explosions.append(Explosion(affected_cells))
+
+        # Eliminar la mina del mundo
+        if mine in self.mines:
+            self.mines.remove(mine)
+            self.grid[gy_c][gx_c] = 0
+
+
     # Esta función convierte coordenadas en píxeles a coordenadas de la cuadrícula (celda) del mapa.
     def pixel_to_cell(self, x, y):
         return int(x) // constants.TILE, int(y) // constants.TILE
-
 
 
     # convert grid coords (gx,gy) to top-left pixel of that cell
@@ -193,6 +250,11 @@ class World:
         # Dibujar minas
         for mine in self.mines:
             mine.draw(screen)
+
+        # Dibujar explosiones
+        for explosion in self.explosions:
+            explosion.draw(screen, self)
+
 
     #Propósito: dibujar en pantalla el texto del inventario del personaje (puntos, rescatados y cantidades de recursos)
     #screen: Surface de Pygame donde se dibuja.character: objeto Character que contiene .inventory (diccionario).

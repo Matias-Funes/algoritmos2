@@ -1,15 +1,15 @@
 #tamaños
 WIDTH, HEIGHT = 900, 600
-PLAYER = 20
-GRASS = 30
-TREE = 25
-PERSON = 25
-MERCH_SIZE = 20
+GRASS = 15
+TILE = GRASS
+PLAYER = TILE * 0.9
+TREE = TILE
+PERSON = TILE * 0.8
+MERCH_SIZE = TILE * 0.9
 
 # tamaño de celda (tile) usado por la grid
-TILE = GRASS
-GRID_WIDTH = WIDTH // TILE
-GRID_HEIGHT = HEIGHT // TILE
+GRID_WIDTH = WIDTH // TILE # número de celdas en ancho
+GRID_HEIGHT = HEIGHT // TILE # número de celdas en alto
 
 #colores
 WHITE = (255, 255, 255)
@@ -41,11 +41,11 @@ MERCH_COUNTS = {
 
 # Tipos de minas y sus radios
 MINE_TYPES = {
-    "O1": {"radius": 10, "type": "circular", "static": True},
-    "O2": {"radius": 5, "type": "circular", "static": True},
-    "T1": {"radius": 10, "type": "horizontal", "static": True},
-    "T2": {"radius": 5, "type": "vertical", "static": True},
-    "G1": {"radius": 7, "type": "circular", "static": False}
+    "O1": {"radius": TILE*10, "type": "circular", "static": True},
+    "O2": {"radius": TILE*5, "type": "circular", "static": True},
+    "T1": {"radius": TILE*10, "type": "horizontal", "static": True},
+    "T2": {"radius": TILE*5, "type": "vertical", "static": True},
+    "G1": {"radius": TILE*7, "type": "circular", "static": False}
 }
 
 # Cantidad de minas por tipo

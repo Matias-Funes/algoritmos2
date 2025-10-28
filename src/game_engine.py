@@ -67,11 +67,7 @@ def main():
                     
        
 
-                    
-                    # Actualizar minas G1
-                    world.update_g1_mines()  
-                    player1.update(world)
-                    player2.update(world)
+
 
                     # Verificar colisión entre jugadores
                     if (math.hypot(player1.x - player2.x, player1.y - player2.y) < 
@@ -88,6 +84,7 @@ def main():
 
         # lógica del juego
         if current_state == GameState.PLAYING:
+            world.update([player1, player2]) 
             player1.update(world)
             player2.update(world)
 

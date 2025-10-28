@@ -33,3 +33,6 @@ dist/
 
 # ---- CONFIGURACIÓN PERSONAL ----
 .env
+
+# ---- OTROS ----
+estructura.txt

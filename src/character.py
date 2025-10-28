@@ -129,6 +129,7 @@ class Character:
                 closest_y = max(char_rect.top, min(mine_center[1], char_rect.bottom))
                 distance = math.hypot(closest_x - mine_center[0], closest_y - mine_center[1])
                 if distance <= radius:
+                    world.detonate_mine(mine)
                     self.die()
                     break
             elif mine.type == "T1":

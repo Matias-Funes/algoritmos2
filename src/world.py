@@ -262,7 +262,7 @@ class World:
         
         y = 20
         # Título
-        title = font_title.render("🔴 JUGADOR 1", True, (255, 150, 150))
+        title = font_title.render("JUGADOR 1", True, (255, 150, 150))
         screen.blit(title, (20, y))
         y += 30
         
@@ -313,7 +313,7 @@ class World:
         x_base = constants.WIDTH - panel_width
         
         # Título
-        title = font_title.render("🔵 JUGADOR 2", True, (150, 150, 255))
+        title = font_title.render("JUGADOR 2", True, (150, 150, 255))
         screen.blit(title, (x_base, y))
         y += 30
         
@@ -364,7 +364,7 @@ class World:
         # Tiempo restante
         time_left = max(0, (max_game_time - game_time) // 60)
         time_color = (255, 100, 100) if time_left < 30 else (255, 255, 150)
-        time_text = font_title.render(f"⏱ {time_left}s", True, time_color)
+        time_text = font_title.render(f"{time_left}s", True, time_color)
         screen.blit(time_text, (time_panel_x + 20, 18))
         
         # Barra de progreso de tiempo
@@ -380,5 +380,5 @@ class World:
             mini_panel_x = (constants.WIDTH - mini_panel_width) // 2
             draw_panel(screen, mini_panel_x, constants.HEIGHT - 50, mini_panel_width, 35, (40, 50, 40))
             
-            res_text = font_normal.render(f"📦 Recursos: {resources_remaining}", True, (150, 255, 150))
+            res_text = font_normal.render(f"Recursos: {resources_remaining}", True, (150, 255, 150))
             screen.blit(res_text, (mini_panel_x + 15, constants.HEIGHT - 38))

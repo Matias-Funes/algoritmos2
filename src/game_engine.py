@@ -199,27 +199,83 @@ def main():
         screen.blit(text, (base2_x - 32, base2_y - 72))
         text = FONT_NORMAL.render("BASE P2", True, (100, 100, 255))
         screen.blit(text, (base2_x - 33, base2_y - 73))
+    
+    # FUNCION QUE DIBUJA EL MENU DE PAUSA
+    def draw_pause_menu(surface):
+        """Dibuja un menú de pausa interactivo y estilizado."""
+        # Fondo oscuro semitransparente
+        overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        surface.blit(overlay, (0, 0))
+        
+        # Genero el panel
+        panel_width = 350
+        panel_height = 260
+        panel_x = constants.WIDTH // 2 - panel_width // 2
+        panel_y = constants.HEIGHT // 2 - panel_height // 2
+        draw_panel(surface, panel_x, panel_y, panel_width, panel_height, (40, 50, 60))
+
+        # Título del Menú
+        y_pos = panel_y + 30
+        title = FONT_TITLE.render("JUEGO EN PAUSA", True, (255, 215, 0))
+        title_rect = title.get_rect(center=(constants.WIDTH // 2, y_pos))
+        surface.blit(title, title_rect)
+        y_pos += 55
+
+        # Opciones del menú
+        options = {
+            "Reanudar": "[ESC]",
+            "Nueva Simulación": "[R]", 
+            "Guardar Partida": "[G]",
+            "Salir del Juego": "[Q]"
+        }
+
+        for text, key in options.items():
+            option_text = FONT_NORMAL.render(text, True, (220, 220, 220))
+            key_text = FONT_NORMAL.render(key, True, (255, 215, 0))
+            
+            surface.blit(option_text, (panel_x + 40, y_pos))
+            surface.blit(key_text, (panel_x + panel_width - 40 - key_text.get_width(), y_pos))
+            y_pos += 40
 
     # Variables para efectos
     last_p1_alive = 10
     last_p2_alive = 10
 
     while True:
+        # Bucle y manejo de eventos al pausar 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             
             if event.type == pygame.KEYDOWN:
+                # La tecla ESC siempre alterna entre jugar y pausar
                 if event.key == pygame.K_ESCAPE:
                     current_state = GameState.PAUSED if current_state == GameState.PLAYING else GameState.PLAYING
                 
-                if event.key == pygame.K_i:
-                    world.relocate_g1_mines()
+                # Si estamos en pausa, escuchamos las teclas del menú
+                if current_state == GameState.PAUSED:
+                    if event.key == pygame.K_r:
+                        main()  # Llama a main de nuevo para reiniciar
+                        return  # Es importante salir de la instancia actual de main
+                    if event.key == pygame.K_g:
+                        print("Acción: Guardar partida (lógica a implementar)")
+                        # Aquí iría la llamada a la función de guardado de la base de datos
+                    elif event.key == pygame.K_q:
+                        pygame.quit()
+                        sys.exit()
+
+                # Si estamos jugando, escuchamos las teclas del juego
+                if current_state == GameState.PLAYING:
+                    if event.key == pygame.K_i:
+                        world.relocate_g1_mines()
                 
-                if event.key == pygame.K_r:
-                    main()
-                    return
+                # Si el juego ha terminado, la 'R' reinicia
+                if current_state == GameState.GAME_OVER:
+                    if event.key == pygame.K_r:
+                        main()  # Llama a main de nuevo para reiniciar
+                        return
 
         # Lógica del juego
         if current_state == GameState.PLAYING:
@@ -339,15 +395,10 @@ def main():
             screen.blit(text2, text2_rect)
         
         # Estado del juego
+        #Dibujo el menu de pausa 
         if current_state == GameState.PAUSED:
-            overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 150))
-            screen.blit(overlay, (0, 0))
-            
-            text = FONT_TITLE.render("⏸ PAUSADO", True, (255, 255, 0))
-            screen.blit(text, (constants.WIDTH//2 - 70, constants.HEIGHT//2 - 30))
-            text = FONT_NORMAL.render("Presiona ESC para continuar", True, (255, 255, 255))
-            screen.blit(text, (constants.WIDTH//2 - 120, constants.HEIGHT//2 + 10))
+            # Llamamos a nuestra nueva función de menú en lugar del texto simple
+            draw_pause_menu(screen)
         
         if current_state == GameState.GAME_OVER:
             overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)

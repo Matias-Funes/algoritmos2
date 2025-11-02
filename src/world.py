@@ -10,6 +10,11 @@ class World:
         self.width = width
         self.height = constants.GAME_WORLD_HEIGHT
 
+        # Definir las áreas de las bases para evitar que se generen objetos en ellas
+        self.base1_pos = (50, constants.GAME_WORLD_HEIGHT // 2)
+        self.base2_pos = (constants.WIDTH - 50, constants.GAME_WORLD_HEIGHT // 2)
+        self.base_radius = 50  # Radio de la base en píxeles
+        
         # grid: 0 libre, 1 árbol, 2 persona, 3 mercancía, 4 mina
         self.grid = [[0 for _ in range(constants.GRID_WIDTH)] for _ in range(constants.GRID_HEIGHT)]
 
@@ -30,7 +35,7 @@ class World:
                 gx = random.randint(0, constants.GRID_WIDTH - 1)
                 gy = random.randint(0, constants.GRID_HEIGHT - 1)
                 attempts += 1
-                if self.grid[gy][gx] == 0:
+                if self.grid[gy][gx] == 0 and not self.is_in_base_area(gx, gy):
                     self.grid[gy][gx] = 1
                     px, py = self.cell_to_pixel(gx, gy)
                     self.trees.append(Tree(px, py))
@@ -42,6 +47,23 @@ class World:
         self.resources = []
         self.vehicles = []
 
+    # Funcion para verificar si una celda esta dentro de alguna base 
+    def is_in_base_area(self, gx, gy):
+        """Verifica si una celda de la grid está dentro de alguna base."""
+        # Calculamos el centro de la celda en píxeles
+        px, py = self.cell_to_pixel(gx, gy)
+        px_center = px + constants.TILE // 2
+        py_center = py + constants.TILE // 2
+        
+        # Comprobamos la distancia a los centros de las bases
+        dist_base1 = math.hypot(px_center - self.base1_pos[0], py_center - self.base1_pos[1])
+        dist_base2 = math.hypot(px_center - self.base2_pos[0], py_center - self.base2_pos[1])
+        
+        # Si está dentro del radio de CUALQUIER base, es verdadero
+        if dist_base1 <= self.base_radius or dist_base2 <= self.base_radius:
+            return True
+        return False
+    
     def initialize_map_elements(self):
         """
         Limpia y (re)genera todas las minas, personas y mercancías.
@@ -67,7 +89,7 @@ class World:
                 gx = random.randint(0, constants.GRID_WIDTH - 1)
                 gy = random.randint(0, constants.GRID_HEIGHT - 1)
                 attempts += 1
-                if self.grid[gy][gx] == 0:
+                if self.grid[gy][gx] == 0 and not self.is_in_base_area(gx, gy):
                     self.grid[gy][gx] = 2
                     px, py = self.cell_to_pixel(gx, gy)
                     self.people.append(Person(px, py))
@@ -81,7 +103,7 @@ class World:
                     gx = random.randint(0, constants.GRID_WIDTH - 1)
                     gy = random.randint(0, constants.GRID_HEIGHT - 1)
                     attempts += 1
-                    if self.grid[gy][gx] == 0:
+                    if self.grid[gy][gx] == 0 and not self.is_in_base_area(gx, gy):
                         self.grid[gy][gx] = 3
                         px, py = self.cell_to_pixel(gx, gy)
                         self.merch.append(Merchandise(px, py, kind))
@@ -109,6 +131,14 @@ class World:
             p.value = constants.POINTS_PERSON
             self.resources.append(p)
 
+    def get_state(self):
+        """Recopila el estado de todos los elementos del mundo."""
+        return {
+            "people": [p.get_state() for p in self.people],
+            "merchandise": [m.get_state() for m in self.merch],
+            "mines": [m.get_state() for m in self.mines]
+        }
+    
     def remove_resource(self, resource):
         """Remueve un recurso del mundo"""
         if resource in self.resources:
@@ -158,7 +188,7 @@ class World:
                     gx = random.randint(0, constants.GRID_WIDTH - 1)
                     gy = random.randint(0, constants.GRID_HEIGHT - 1)
                     
-                    if self.grid[gy][gx] != 0:
+                    if self.grid[gy][gx] != 0 or self.is_in_base_area(gx, gy):
                         attempts += 1
                         continue
                 
@@ -196,7 +226,7 @@ class World:
                 while attempts < 200:
                     gx = random.randint(0, constants.GRID_WIDTH - 1)
                     gy = random.randint(0, constants.GRID_HEIGHT - 1)
-                    if self.grid[gy][gx] == 0:
+                    if self.grid[gy][gx] == 0 and not self.is_in_base_area(gx, gy):
                         mine.x, mine.y = self.cell_to_pixel(gx, gy)
                         self.grid[gy][gx] = 4
                         break

@@ -56,6 +56,15 @@ class Person:
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
 
+    def get_state(self):
+        """Devuelve un diccionario simple para guardar."""
+        return {
+            "type": self.type,
+            "x": self.x,
+            "y": self.y,
+            "value": self.value
+        }
+
 
 class Merchandise:
     def __init__(self, x, y, kind):
@@ -114,6 +123,15 @@ class Merchandise:
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
 
+    def get_state(self):
+        """Devuelve un diccionario simple para guardar."""
+        return {
+            "type": self.type,
+            "kind": self.kind,
+            "x": self.x,
+            "y": self.y,
+            "value": self.value
+        }
 
 class Mine:
     def __init__(self, x, y, mine_type):
@@ -207,3 +225,14 @@ class Mine:
             return abs(px - cx) <= 2 and abs(py - cy) <= self.radius
         
         return False
+    
+    def get_state(self):
+        """Devuelve un diccionario simple para guardar."""
+        return {
+            "type": self.type,
+            "x": self.x,
+            "y": self.y,
+            "active": self.active,
+            "toggle_timer": self.toggle_timer,
+            "radius": self.radius
+        }

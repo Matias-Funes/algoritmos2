@@ -44,13 +44,15 @@ def draw_panel(surface, x, y, width, height, color=(30, 30, 40)):
 
 def main():
     clock = pygame.time.Clock()
-    world = World(constants.WIDTH, constants.HEIGHT)
+    # Usamos GAME_WORLD_HEIGHT para inicializar el mundo
+    world = World(constants.WIDTH, constants.GAME_WORLD_HEIGHT)
 
     # Bases con mejor posicionamiento
     base1_x = 50
-    base1_y = constants.HEIGHT // 2
+    # Centramos las bases en el MUNDO, no en la ventana
+    base1_y = constants.GAME_WORLD_HEIGHT // 2 
     base2_x = constants.WIDTH - 50
-    base2_y = constants.HEIGHT // 2
+    base2_y = constants.GAME_WORLD_HEIGHT // 2
 
     # ==========================================
     # JUGADOR 1 - ROJO (Izquierda)
@@ -136,9 +138,29 @@ def main():
     world.player1_vehicles = player1_vehicles
     world.player2_vehicles = player2_vehicles
 
-    current_state = GameState.PLAYING
+    current_state = GameState.PREPARATION
     game_time = 0
     max_game_time = 7200  # 120 segundos
+    
+    #Definición de las áreas de los botones
+    btn_height = 50
+    btn_y = constants.UI_PANEL_Y + (constants.UI_PANEL_HEIGHT - btn_height) // 2
+    btn_width_small = 60
+    btn_width_large = 80
+    btn_width_xl = 90 # Para "Guardar" y "Cargar"
+
+    # Grupo 1: Controles de Simulación (Izquierda)
+    btn_init = pygame.Rect(20, btn_y, btn_width_large, btn_height)
+    btn_play = pygame.Rect(110, btn_y, btn_width_small, btn_height)
+    btn_pause = pygame.Rect(180, btn_y, btn_width_small, btn_height)
+    btn_step_back = pygame.Rect(250, btn_y, btn_width_small, btn_height)
+    btn_step_fwd = pygame.Rect(320, btn_y, btn_width_small, btn_height)
+    
+    # Grupo 2: Persistencia (Derecha)
+    btn_save = pygame.Rect(constants.WIDTH - 420, btn_y, btn_width_xl, btn_height)
+    btn_load = pygame.Rect(constants.WIDTH - 320, btn_y, btn_width_xl, btn_height)
+    btn_replay = pygame.Rect(constants.WIDTH - 220, btn_y, btn_width_large, btn_height)
+    btn_stats = pygame.Rect(constants.WIDTH - 130, btn_y, btn_width_large, btn_height)
 
     # Efectos de partículas
     particles = []
@@ -200,44 +222,62 @@ def main():
         text = FONT_NORMAL.render("BASE P2", True, (100, 100, 255))
         screen.blit(text, (base2_x - 33, base2_y - 73))
     
-    # FUNCION QUE DIBUJA EL MENU DE PAUSA
-    def draw_pause_menu(surface):
-        """Dibuja un menú de pausa interactivo y estilizado."""
-        # Fondo oscuro semitransparente
-        overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        surface.blit(overlay, (0, 0))
+
+    # --- NUEVA FUNCIÓN HELPER ---
+    def draw_button_text(surface, text, rect, font=FONT_NORMAL):
+        """Helper para centrar texto en un botón"""
+        text_surf = font.render(text, True, (255, 255, 255))
+        text_rect = text_surf.get_rect(center=rect.center)
+        surface.blit(text_surf, text_rect)
+
+    #FUNCIÓN DE DIBUJO DEL PANEL
+    def draw_control_panel(surface, state):
+        """Dibuja el panel de control fijo en la parte inferior."""
+        # Fondo del panel
+        panel_rect = pygame.Rect(0, constants.UI_PANEL_Y, constants.WIDTH, constants.UI_PANEL_HEIGHT)
+        draw_gradient_rect(surface, (30, 30, 40), (50, 50, 60), panel_rect)
+        pygame.draw.line(surface, (100, 100, 110), (0, constants.UI_PANEL_Y), (constants.WIDTH, constants.UI_PANEL_Y), 2)
         
-        # Genero el panel
-        panel_width = 350
-        panel_height = 260
-        panel_x = constants.WIDTH // 2 - panel_width // 2
-        panel_y = constants.HEIGHT // 2 - panel_height // 2
-        draw_panel(surface, panel_x, panel_y, panel_width, panel_height, (40, 50, 60))
-
-        # Título del Menú
-        y_pos = panel_y + 30
-        title = FONT_TITLE.render("JUEGO EN PAUSA", True, (255, 215, 0))
-        title_rect = title.get_rect(center=(constants.WIDTH // 2, y_pos))
-        surface.blit(title, title_rect)
-        y_pos += 55
-
-        # Opciones del menú
-        options = {
-            "Reanudar": "[ESC]",
-            "Nueva Simulación": "[R]", 
-            "Guardar Partida": "[G]",
-            "Salir del Juego": "[Q]"
-        }
-
-        for text, key in options.items():
-            option_text = FONT_NORMAL.render(text, True, (220, 220, 220))
-            key_text = FONT_NORMAL.render(key, True, (255, 215, 0))
-            
-            surface.blit(option_text, (panel_x + 40, y_pos))
-            surface.blit(key_text, (panel_x + panel_width - 40 - key_text.get_width(), y_pos))
-            y_pos += 40
-
+        # --- Colores de Botones (con lógica de estado) ---
+        color_disabled = (40, 40, 40)
+        color_default = (80, 80, 90)
+        color_play = (60, 150, 60)
+        color_pause = (150, 60, 60)
+        
+        # Lógica de habilitación
+        init_enabled = state == GameState.PREPARATION
+        play_enabled = state == GameState.PREPARATION or state == GameState.PAUSED
+        pause_enabled = state == GameState.PLAYING
+        
+        # Asignar colores
+        color_init = color_default if init_enabled else color_disabled
+        color_play_btn = color_play if play_enabled else color_disabled
+        color_pause_btn = color_pause if pause_enabled else color_disabled
+        
+        # Dibujar botones
+        pygame.draw.rect(surface, color_init, btn_init, border_radius=5)
+        pygame.draw.rect(surface, color_play_btn, btn_play, border_radius=5)
+        pygame.draw.rect(surface, color_pause_btn, btn_pause, border_radius=5)
+        
+        # (El resto de botones por ahora)
+        pygame.draw.rect(surface, color_default, btn_step_back, border_radius=5)
+        pygame.draw.rect(surface, color_default, btn_step_fwd, border_radius=5)
+        pygame.draw.rect(surface, color_default, btn_save, border_radius=5)
+        pygame.draw.rect(surface, color_default, btn_load, border_radius=5)
+        pygame.draw.rect(surface, color_default, btn_replay, border_radius=5)
+        pygame.draw.rect(surface, color_default, btn_stats, border_radius=5)
+        
+        # --- Dibujar texto de botones ---
+        draw_button_text(surface, "Init", btn_init)
+        draw_button_text(surface, "Play", btn_play)
+        draw_button_text(surface, "Pause", btn_pause)
+        draw_button_text(surface, "<<", btn_step_back, FONT_TITLE)
+        draw_button_text(surface, ">>", btn_step_fwd, FONT_TITLE)
+        draw_button_text(surface, "Guardar", btn_save)
+        draw_button_text(surface, "Cargar", btn_load)
+        draw_button_text(surface, "Replay", btn_replay)
+        draw_button_text(surface, "Stats", btn_stats)
+    
     # Variables para efectos
     last_p1_alive = 10
     last_p2_alive = 10
@@ -249,32 +289,49 @@ def main():
                 pygame.quit()
                 sys.exit()
             
-            if event.type == pygame.KEYDOWN:
-                # La tecla ESC siempre alterna entre jugar y pausar
-                if event.key == pygame.K_ESCAPE:
-                    current_state = GameState.PAUSED if current_state == GameState.PLAYING else GameState.PLAYING
-                
-                # Si estamos en pausa, escuchamos las teclas del menú
-                if current_state == GameState.PAUSED:
-                    if event.key == pygame.K_r:
-                        main()  # Llama a main de nuevo para reiniciar
-                        return  # Es importante salir de la instancia actual de main
-                    if event.key == pygame.K_g:
-                        print("Acción: Guardar partida (lógica a implementar)")
-                        # Aquí iría la llamada a la función de guardado de la base de datos
-                    elif event.key == pygame.K_q:
-                        pygame.quit()
-                        sys.exit()
+            #Manejo de Clics de Botones
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1: # Clic izquierdo
+                    pos = pygame.mouse.get_pos()
+                    
+                    # --- AÑADIR ESTA LÓGICA ---
+                    # Lógica del botón de INIT
+                    if btn_init.collidepoint(pos):
+                        # Solo funciona si estamos en preparación
+                        if current_state == GameState.PREPARATION:
+                            world.initialize_map_elements()
+                            
+                    # Lógica del botón de PLAY
+                    elif btn_play.collidepoint(pos):
+                        if current_state == GameState.PREPARATION or current_state == GameState.PAUSED:
+                            # --- AÑADIR ESTO ---
+                            # Si estábamos en preparación, ahora el mapa está "fijado"
+                            if current_state == GameState.PREPARATION:
+                                # Validar que se haya inicializado el mapa
+                                if not world.resources:
+                                    print("Presiona 'Init' primero para generar el mapa.")
+                                    continue # No inicia el juego
 
-                # Si estamos jugando, escuchamos las teclas del juego
+                            current_state = GameState.PLAYING
+                    
+                    # Lógica del botón de PAUSE
+                    elif btn_pause.collidepoint(pos):
+                        # Solo funciona si estamos jugando
+                        if current_state == GameState.PLAYING:
+                            current_state = GameState.PAUSED
+                    
+                    # (Aquí añadiremos los otros botones después)
+            
+            if event.type == pygame.KEYDOWN:
+                # Teclas de atajo solo si estamos JUGANDO
                 if current_state == GameState.PLAYING:
                     if event.key == pygame.K_i:
                         world.relocate_g1_mines()
                 
-                # Si el juego ha terminado, la 'R' reinicia
+                # Tecla de reinicio solo si el juego TERMINÓ
                 if current_state == GameState.GAME_OVER:
                     if event.key == pygame.K_r:
-                        main()  # Llama a main de nuevo para reiniciar
+                        main() # Llama a main de nuevo para reiniciar
                         return
 
         # Lógica del juego
@@ -394,11 +451,22 @@ def main():
             text2_rect = text2.get_rect(center=(constants.WIDTH//2, banner_y + 42))
             screen.blit(text2, text2_rect)
         
+        # --- DIBUJAR EL PANEL DE CONTROL FIJO ---
+        # (Se dibuja siempre, encima del HUD pero debajo de los pop-ups)
+        draw_control_panel(screen, current_state)
+        
         # Estado del juego
         #Dibujo el menu de pausa 
+        # --- DIBUJAR ESTADOS SUPERPUESTOS (PAUSA, GAME OVER) ---
         if current_state == GameState.PAUSED:
-            # Llamamos a nuestra nueva función de menú en lugar del texto simple
-            draw_pause_menu(screen)
+            # Oscurece solo el MUNDO del juego
+            overlay = pygame.Surface((constants.WIDTH, constants.GAME_WORLD_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 120))
+            screen.blit(overlay, (0, 0))
+            
+            pause_text = FONT_TITLE.render("PAUSADO", True, (255, 255, 0))
+            text_rect = pause_text.get_rect(center=(constants.WIDTH // 2, constants.GAME_WORLD_HEIGHT // 2))
+            screen.blit(pause_text, text_rect)
         
         if current_state == GameState.GAME_OVER:
             overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)

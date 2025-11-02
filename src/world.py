@@ -8,7 +8,7 @@ import math
 class World:
     def __init__(self, width, height):
         self.width = width
-        self.height = height
+        self.height = constants.GAME_WORLD_HEIGHT
 
         # grid: 0 libre, 1 árbol, 2 persona, 3 mercancía, 4 mina
         self.grid = [[0 for _ in range(constants.GRID_WIDTH)] for _ in range(constants.GRID_HEIGHT)]
@@ -35,9 +35,32 @@ class World:
                     px, py = self.cell_to_pixel(gx, gy)
                     self.trees.append(Tree(px, py))
                     break
-
-        # Generar personas
+        # Inicializamos las listas como vacías
         self.people = []
+        self.merch = []
+        self.mines = []
+        self.resources = []
+        self.vehicles = []
+
+    def initialize_map_elements(self):
+        """
+        Limpia y (re)genera todas las minas, personas y mercancías.
+        """
+        print("Generando nuevos elementos en el mapa...")
+        
+        #Limpiar listas de objetos
+        self.people.clear()
+        self.merch.clear()
+        self.mines.clear()
+        self.resources.clear()
+        
+        #Resetear la grid (borrar todo excepto los árboles '1')
+        for y in range(constants.GRID_HEIGHT):
+            for x in range(constants.GRID_WIDTH):
+                if self.grid[y][x] != 1: # Si no es un árbol
+                    self.grid[y][x] = 0  # Limpiar la celda
+                    
+        #Generar personas 
         for _ in range(constants.NUM_PEOPLE):
             attempts = 0
             while attempts < 200:
@@ -50,8 +73,7 @@ class World:
                     self.people.append(Person(px, py))
                     break
 
-        # Generar mercancías
-        self.merch = []
+        # Generar mercancias 
         for kind, cnt in constants.MERCH_COUNTS.items():
             for _ in range(cnt):
                 attempts = 0
@@ -65,17 +87,12 @@ class World:
                         self.merch.append(Merchandise(px, py, kind))
                         break
 
-        # Inicializar minas
-        self.mines = []
+        # Generar minas 
         self.init_mines()
 
-        # Lista unificada de recursos para las estrategias
-        self.resources = []
+        # Actualizar recursos 
         self.update_resources_list()
-
-        # Lista de vehículos (se asigna desde game_engine)
-        self.vehicles = []
-    
+        
     def update_resources_list(self):
         """Actualiza la lista unificada de recursos"""
         self.resources = []
@@ -378,7 +395,7 @@ class World:
         if resources_remaining > 0:
             mini_panel_width = 150
             mini_panel_x = (constants.WIDTH - mini_panel_width) // 2
-            draw_panel(screen, mini_panel_x, constants.HEIGHT - 50, mini_panel_width, 35, (40, 50, 40))
+            draw_panel(screen, mini_panel_x, constants.GAME_WORLD_HEIGHT - 50, mini_panel_width, 35, (40, 50, 40))
             
             res_text = font_normal.render(f"Recursos: {resources_remaining}", True, (150, 255, 150))
-            screen.blit(res_text, (mini_panel_x + 15, constants.HEIGHT - 38))
+            screen.blit(res_text, (mini_panel_x + 15, constants.GAME_WORLD_HEIGHT - 38))

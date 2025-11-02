@@ -20,6 +20,11 @@ MERCH_COUNTS = {
     "weapons": 10     # Armamentos
 }# Tamaños
 WIDTH, HEIGHT = 900, 600
+# Panel de Control Fijo (UI)
+UI_PANEL_HEIGHT = 80  # Altura de la barra de botones (puedes ajustarla)
+UI_PANEL_Y = HEIGHT - UI_PANEL_HEIGHT # Posición Y donde empieza el panel
+# Mundo del Juego (Área de simulación)
+GAME_WORLD_HEIGHT = HEIGHT - UI_PANEL_HEIGHT # El mapa ahora es más bajo
 PLAYER = 20
 GRASS = 30
 TREE = 25
@@ -29,7 +34,7 @@ MERCH_SIZE = 20
 # Tamaño de celda (tile) usado por la grid
 TILE = GRASS
 GRID_WIDTH = WIDTH // TILE
-GRID_HEIGHT = HEIGHT // TILE
+GRID_HEIGHT = GAME_WORLD_HEIGHT // TILE
 
 # Colores
 WHITE = (255, 255, 255)

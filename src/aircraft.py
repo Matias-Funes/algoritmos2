@@ -214,6 +214,31 @@ class Vehicle:
         
         return surface
 
+    def get_state(self):
+        """Devuelve un diccionario con el estado completo del vehículo."""
+        
+        # Guardamos la carga como una lista de 'tipos', no como objetos
+        cargo_list = [item.type for item in self.cargo]
+        
+        return {
+            "id": self.id,
+            "x": self.x,
+            "y": self.y,
+            "vehicle_type": self.vehicle_type,
+            "trips_left": self.trips_left,
+            "cargo": cargo_list, # Lista de strings
+            "alive": self.alive,
+            "score": self.score,
+            "returning_to_base": self.returning_to_base,
+            "at_base": self.at_base,
+            "forced_return": self.forced_return,
+            "speed": self.speed,
+            "color": self.color,
+            "base_position": self.base_position
+            # NOTA: No guardamos 'strategy' o 'target',
+            # se asumirá que la IA los recalcula al cargar.
+        }
+    
     def distance_to(self, obj):
         """Distancia euclidiana a otro objeto"""
         return math.hypot(self.x - obj.x, self.y - obj.y)

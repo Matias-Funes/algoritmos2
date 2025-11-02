@@ -7,6 +7,7 @@ import math
 from config.strategies.player1_strategies import JeepStrategy, MotoStrategy, CamionStrategy, AutoStrategy
 from config.strategies.player2_strategies import AggressiveJeepStrategy, FastMotoStrategy, SupportCamionStrategy, BalancedAutoStrategy
 from src.aircraft import Jeep, Moto, Camion, Auto
+from .database import GameDatabase
 
 pygame.init()
 
@@ -44,6 +45,7 @@ def draw_panel(surface, x, y, width, height, color=(30, 30, 40)):
 
 def main():
     clock = pygame.time.Clock()
+    db = GameDatabase()
     # Usamos GAME_WORLD_HEIGHT para inicializar el mundo
     world = World(constants.WIDTH, constants.GAME_WORLD_HEIGHT)
 
@@ -282,6 +284,26 @@ def main():
     last_p1_alive = 10
     last_p2_alive = 10
 
+    def get_full_game_state():
+        """
+        Recopila el estado de todos los objetos del juego y lo empaqueta.
+        """
+        # 1. Guardar el estado de todos los vehículos
+        p1_vehicles_state = [v.get_state() for v in player1_vehicles]
+        p2_vehicles_state = [v.get_state() for v in player2_vehicles]
+        
+        # 2. Guardar el estado del mundo (minas, recursos, etc.)
+        world_state = world.get_state()
+        
+        # 3. Empaquetar todo en un solo diccionario
+        game_state_data = {
+            "game_time": game_time,
+            "world": world_state,
+            "player1_vehicles": p1_vehicles_state,
+            "player2_vehicles": p2_vehicles_state
+        }
+        return game_state_data
+
     while True:
         # Bucle y manejo de eventos al pausar 
         for event in pygame.event.get():
@@ -294,7 +316,6 @@ def main():
                 if event.button == 1: # Clic izquierdo
                     pos = pygame.mouse.get_pos()
                     
-                    # --- AÑADIR ESTA LÓGICA ---
                     # Lógica del botón de INIT
                     if btn_init.collidepoint(pos):
                         # Solo funciona si estamos en preparación
@@ -304,7 +325,6 @@ def main():
                     # Lógica del botón de PLAY
                     elif btn_play.collidepoint(pos):
                         if current_state == GameState.PREPARATION or current_state == GameState.PAUSED:
-                            # --- AÑADIR ESTO ---
                             # Si estábamos en preparación, ahora el mapa está "fijado"
                             if current_state == GameState.PREPARATION:
                                 # Validar que se haya inicializado el mapa
@@ -320,7 +340,18 @@ def main():
                         if current_state == GameState.PLAYING:
                             current_state = GameState.PAUSED
                     
-                    # (Aquí añadiremos los otros botones después)
+                    elif btn_save.collidepoint(pos):
+                            # Solo se puede guardar si el juego ha comenzado
+                            if current_state == GameState.PLAYING or current_state == GameState.PAUSED:
+                                print("Guardando partida...")
+                                game_data = get_full_game_state()
+                                # Usamos "quicksave" como nombre. Más adelante podemos
+                                # hacer que el usuario escriba un nombre.
+                                db.save_game_state("quicksave", game_data)
+                            else:
+                                print("No se puede guardar: la simulación no ha comenzado.")
+                        
+                        # (Aquí añadiremos los otros botones después)
             
             if event.type == pygame.KEYDOWN:
                 # Teclas de atajo solo si estamos JUGANDO

@@ -131,6 +131,7 @@ class World:
             p.value = constants.POINTS_PERSON
             self.resources.append(p)
 
+    #Guardar 
     def get_state(self):
         """Recopila el estado de todos los elementos del mundo."""
         return {
@@ -138,6 +139,68 @@ class World:
             "merchandise": [m.get_state() for m in self.merch],
             "mines": [m.get_state() for m in self.mines]
         }
+    
+    #Cargar
+    def load_state(self, world_data):
+        """Limpia el mundo y lo recrea a partir de los datos guardados."""
+        print("Cargando estado del mundo...")
+        
+        # 1. Limpiar todas las listas de objetos
+        self.people.clear()
+        self.merch.clear()
+        self.mines.clear()
+        self.resources.clear()
+        
+        # 2. Recrear Personas
+        for person_data in world_data.get('people', []):
+            p = Person(person_data['x'], person_data['y'])
+            # (Podemos añadir más atributos si los guardamos en el futuro)
+            self.people.append(p)
+            
+        # 3. Recrear Mercancías
+        for merch_data in world_data.get('merchandise', []):
+            m = Merchandise(merch_data['x'], merch_data['y'], merch_data['kind'])
+            self.merch.append(m)
+
+        # 4. Recrear Minas
+        for mine_data in world_data.get('mines', []):
+            m = Mine(mine_data['x'], mine_data['y'], mine_data['type'])
+            # Restaurar el estado de la mina (temporizador, actividad)
+            m.active = mine_data.get('active', True)
+            m.toggle_timer = mine_data.get('toggle_timer', 0)
+            self.mines.append(m)
+            
+        # 5. Reconstruir la lista de recursos unificada
+        self.update_resources_list()
+        
+        # 6. Reconstruir la grid de navegación
+        self._rebuild_grid()
+
+    def _rebuild_grid(self):
+        """
+        Limpia y reconstruye la grid de navegación basada en los objetos cargados.
+        """
+        # 1. Resetear la grid (borrar todo excepto los árboles '1')
+        for y in range(constants.GRID_HEIGHT):
+            for x in range(constants.GRID_WIDTH):
+                if self.grid[y][x] != 1: # Si no es un árbol
+                    self.grid[y][x] = 0  # Limpiar la celda
+        
+        # 2. Repoblar la grid con los objetos cargados
+        for p in self.people:
+            gx, gy = self.pixel_to_cell(p.x, p.y)
+            if 0 <= gx < constants.GRID_WIDTH and 0 <= gy < constants.GRID_HEIGHT:
+                self.grid[gy][gx] = 2
+        
+        for m in self.merch:
+            gx, gy = self.pixel_to_cell(m.x, m.y)
+            if 0 <= gx < constants.GRID_WIDTH and 0 <= gy < constants.GRID_HEIGHT:
+                self.grid[gy][gx] = 3
+                
+        for m in self.mines:
+            gx, gy = self.pixel_to_cell(m.x, m.y)
+            if 0 <= gx < constants.GRID_WIDTH and 0 <= gy < constants.GRID_HEIGHT:
+                self.grid[gy][gx] = 4
     
     def remove_resource(self, resource):
         """Remueve un recurso del mundo"""

@@ -218,7 +218,9 @@ class Vehicle:
         """Devuelve un diccionario con el estado completo del vehículo."""
         
         # Guardamos la carga como una lista de 'tipos', no como objetos
-        cargo_list = [item.type for item in self.cargo]
+        cargo_list = []
+        for item in self.cargo:
+            cargo_list.append(item.type) # Usa .type (ej. "person", "food")
         
         return {
             "id": self.id,
@@ -234,9 +236,8 @@ class Vehicle:
             "forced_return": self.forced_return,
             "speed": self.speed,
             "color": self.color,
-            "base_position": self.base_position
-            # NOTA: No guardamos 'strategy' o 'target',
-            # se asumirá que la IA los recalcula al cargar.
+            "base_position": self.base_position,
+            "strategy_name": self.strategy.__class__.__name__ if self.strategy else None
         }
     
     def distance_to(self, obj):

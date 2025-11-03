@@ -8,6 +8,27 @@ from config.strategies.player1_strategies import JeepStrategy, MotoStrategy, Cam
 from config.strategies.player2_strategies import AggressiveJeepStrategy, FastMotoStrategy, SupportCamionStrategy, BalancedAutoStrategy
 from src.aircraft import Jeep, Moto, Camion, Auto
 from .database import GameDatabase
+import pickle 
+import datetime
+import os 
+import glob
+from .elements import Person, Merchandise, Mine
+
+# Convierte los nombres de string (guardados) de nuevo a Clases (para cargar)
+STRATEGY_MAP = {
+    # Estrategias del Jugador 1
+    "JeepStrategy": JeepStrategy,
+    "MotoStrategy": MotoStrategy,
+    "CamionStrategy": CamionStrategy,
+    "AutoStrategy": AutoStrategy,
+    # Estrategias del Jugador 2
+    "AggressiveJeepStrategy": AggressiveJeepStrategy,
+    "FastMotoStrategy": FastMotoStrategy,
+    "SupportCamionStrategy": SupportCamionStrategy,
+    "BalancedAutoStrategy": BalancedAutoStrategy
+    # (Añade BaseStrategy si alguna vez la usas directamente)
+}
+# --- FIN DEL MAPA ---
 
 pygame.init()
 
@@ -143,6 +164,16 @@ def main():
     current_state = GameState.PREPARATION
     game_time = 0
     max_game_time = 7200  # 120 segundos
+    file_menu_cache = [] # Lista genérica para guardar archivos (partidas O replays)
+    file_menu_buttons = [] # Lista genérica para los rects de los botones
+    file_menu_scroll_offset = 0
+    previous_state = GameState.PREPARATION # Para saber a dónde volver
+    
+    # Variables para el REPLAY
+    replay_buffer = [] # Aquí se guardan las "fotos" de la simulación
+    replay_data = [] # Aquí se guarda el replay que estamos VIENDO
+    current_replay_frame = 0 # El "cabezal" de la reproducción
+    
     
     #Definición de las áreas de los botones
     btn_height = 50
@@ -250,6 +281,11 @@ def main():
         init_enabled = state == GameState.PREPARATION
         play_enabled = state == GameState.PREPARATION or state == GameState.PAUSED
         pause_enabled = state == GameState.PLAYING
+        init_enabled = state == GameState.PREPARATION
+        play_enabled = state == GameState.PREPARATION or state == GameState.PAUSED
+        pause_enabled = state == GameState.PLAYING
+        save_enabled = state == GameState.PLAYING or state == GameState.PAUSED
+        load_enabled = state == GameState.PREPARATION or state == GameState.PAUSED # <-- AÑADE ESTA LÍNEA
         
         # Asignar colores
         color_init = color_default if init_enabled else color_disabled
@@ -265,7 +301,8 @@ def main():
         pygame.draw.rect(surface, color_default, btn_step_back, border_radius=5)
         pygame.draw.rect(surface, color_default, btn_step_fwd, border_radius=5)
         pygame.draw.rect(surface, color_default, btn_save, border_radius=5)
-        pygame.draw.rect(surface, color_default, btn_load, border_radius=5)
+        color_load_btn = color_default if load_enabled else color_disabled
+        pygame.draw.rect(surface, color_load_btn, btn_load, border_radius=5)
         pygame.draw.rect(surface, color_default, btn_replay, border_radius=5)
         pygame.draw.rect(surface, color_default, btn_stats, border_radius=5)
         
@@ -279,6 +316,60 @@ def main():
         draw_button_text(surface, "Cargar", btn_load)
         draw_button_text(surface, "Replay", btn_replay)
         draw_button_text(surface, "Stats", btn_stats)
+        
+    def draw_file_selection_menu(surface, title, file_list, scroll_offset):
+        """Dibuja un menú genérico para seleccionar un archivo (guardado o replay)."""
+        nonlocal file_menu_buttons # Usamos la variable global
+        file_menu_buttons.clear() # Limpiamos los botones
+
+        # 1. Fondo oscuro
+        overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200))
+        surface.blit(overlay, (0, 0))
+
+        # 2. Panel principal
+        panel_width = 500
+        panel_height = 400
+        panel_x = constants.WIDTH // 2 - panel_width // 2
+        panel_y = constants.HEIGHT // 2 - panel_height // 2
+        draw_panel(surface, panel_x, panel_y, panel_width, panel_height, (40, 50, 60))
+
+        # 3. Título (ahora es un parámetro)
+        title_surf = FONT_TITLE.render(title, True, (255, 215, 0))
+        title_rect = title_surf.get_rect(center=(constants.WIDTH // 2, panel_y + 40))
+        surface.blit(title_surf, title_rect)
+
+        # 4. Dibujar la lista de archivos (ahora es un parámetro)
+        y_pos = panel_y + 80
+        files_to_show = file_list[scroll_offset : scroll_offset + 5]
+
+        for i, filename in enumerate(files_to_show):
+            # Limpiar el nombre para que sea más legible
+            display_name = filename.replace(".pkl", "").replace("_", "  ")
+            
+            btn_rect = pygame.Rect(panel_x + 20, y_pos, panel_width - 40, 40)
+            file_menu_buttons.append((btn_rect, filename)) # Guardamos rect y nombre
+
+            mouse_pos = pygame.mouse.get_pos()
+            if btn_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(surface, (100, 110, 120), btn_rect, border_radius=5)
+            else:
+                pygame.draw.rect(surface, (60, 70, 80), btn_rect, border_radius=5)
+            
+            text_surf = FONT_NORMAL.render(display_name, True, (255, 255, 255))
+            surface.blit(text_surf, (btn_rect.x + 15, btn_rect.y + 10))
+            y_pos += 50
+        
+        # 5. Botón de Cancelar
+        btn_cancel_rect = pygame.Rect(constants.WIDTH // 2 - 50, panel_y + panel_height - 60, 100, 40)
+        file_menu_buttons.append((btn_cancel_rect, "CANCEL"))
+        
+        if btn_cancel_rect.collidepoint(pygame.mouse.get_pos()):
+            pygame.draw.rect(surface, (180, 50, 50), btn_cancel_rect, border_radius=5)
+        else:
+            pygame.draw.rect(surface, (150, 30, 30), btn_cancel_rect, border_radius=5)
+        draw_button_text(surface, "Cancelar", btn_cancel_rect)
+    
     
     # Variables para efectos
     last_p1_alive = 10
@@ -288,12 +379,13 @@ def main():
         """
         Recopila el estado de todos los objetos del juego y lo empaqueta.
         """
+        print("Creando 'foto' del estado del juego...")
         # 1. Guardar el estado de todos los vehículos
         p1_vehicles_state = [v.get_state() for v in player1_vehicles]
         p2_vehicles_state = [v.get_state() for v in player2_vehicles]
         
         # 2. Guardar el estado del mundo (minas, recursos, etc.)
-        world_state = world.get_state()
+        world_state = world.get_state() # Llama al get_state() de world
         
         # 3. Empaquetar todo en un solo diccionario
         game_state_data = {
@@ -304,6 +396,108 @@ def main():
         }
         return game_state_data
 
+    def load_game_from_data(data):
+        """
+        Reconstruye el estado completo del juego a partir de un diccionario de datos.
+        """
+        nonlocal game_time, current_state # ¡Importante!
+        
+        print("Cargando partida...")
+        
+        # 1. Restaurar el mundo
+        world.load_state(data['world'])
+        
+        # 2. Limpiar flotas actuales
+        player1_vehicles.clear()
+        player2_vehicles.clear()
+
+        # Diccionario para recrear vehículos por su tipo
+        vehicle_classes = {
+            "jeep": Jeep,
+            "moto": Moto,
+            "camion": Camion,
+            "auto": Auto
+        }
+        
+        # 3. Reconstruir Flota del Jugador 1
+        for v_data in data.get('player1_vehicles', []):
+            v_type = v_data.get('vehicle_type')
+            if v_type in vehicle_classes:
+                # Crear la nueva instancia del vehículo
+                cls = vehicle_classes[v_type]
+                new_v = cls(v_data['id'], v_data['x'], v_data['y'], 
+                            v_data['base_position'], v_data['color'])
+                
+                # Restaurar todos los atributos guardados
+                new_v.trips_left = v_data.get('trips_left', 1)
+                new_v.alive = v_data.get('alive', True)
+                new_v.score = v_data.get('score', 0)
+                new_v.returning_to_base = v_data.get('returning_to_base', False)
+                new_v.at_base = v_data.get('at_base', False)
+                new_v.forced_return = v_data.get('forced_return', False)
+                new_v.speed = v_data.get('speed', 2)
+
+                # Reconstruir la carga (importante!)
+                new_v.cargo = []
+                for item_type in v_data.get('cargo', []):
+                    if item_type == 'person':
+                        # Creamos un objeto 'Person' temporal. Solo nos importa su .value
+                        new_v.cargo.append(Person(0,0)) 
+                    elif item_type in constants.MERCH_COUNTS:
+                        # Creamos un objeto 'Merchandise' temporal.
+                        new_v.cargo.append(Merchandise(0,0, item_type))
+                
+                # Restaurar el "cerebro" (la estrategia)
+                strategy_name = v_data.get('strategy_name')
+                if strategy_name in STRATEGY_MAP:
+                    new_v.strategy = STRATEGY_MAP[strategy_name]() # Crea una nueva instancia
+                else:
+                    new_v.strategy = None
+                    
+                player1_vehicles.append(new_v)
+
+        # 4. Reconstruir Flota del Jugador 2
+        for v_data in data.get('player2_vehicles', []):
+            v_type = v_data.get('vehicle_type')
+            if v_type in vehicle_classes:
+                cls = vehicle_classes[v_type]
+                new_v = cls(v_data['id'], v_data['x'], v_data['y'], 
+                            v_data['base_position'], v_data['color'])
+                
+                # (Copiar y pegar la misma lógica de restauración de atributos de arriba)
+                new_v.trips_left = v_data.get('trips_left', 1)
+                new_v.alive = v_data.get('alive', True)
+                new_v.score = v_data.get('score', 0)
+                new_v.returning_to_base = v_data.get('returning_to_base', False)
+                new_v.at_base = v_data.get('at_base', False)
+                new_v.forced_return = v_data.get('forced_return', False)
+                new_v.speed = v_data.get('speed', 2)
+                
+                new_v.cargo = []
+                for item_type in v_data.get('cargo', []):
+                    if item_type == 'person':
+                        new_v.cargo.append(Person(0,0))
+                    elif item_type in constants.MERCH_COUNTS:
+                        new_v.cargo.append(Merchandise(0,0, item_type))
+                
+                # Restaurar el "cerebro" (la estrategia)
+                strategy_name = v_data.get('strategy_name')
+                if strategy_name in STRATEGY_MAP:
+                    new_v.strategy = STRATEGY_MAP[strategy_name]() # Crea una nueva instancia
+                else:
+                    new_v.strategy = None
+                     
+                player2_vehicles.append(new_v)
+
+        # 5. Actualizar la lista de vehículos del mundo
+        world.vehicles = player1_vehicles + player2_vehicles
+        
+        # 6. Restaurar el tiempo y pausar el juego
+        game_time = data.get('game_time', 0)
+        current_state = GameState.PAUSED # Carga la partida en pausa
+        print("¡Partida cargada! El juego está en pausa.")
+    
+    
     while True:
         # Bucle y manejo de eventos al pausar 
         for event in pygame.event.get():
@@ -311,65 +505,115 @@ def main():
                 pygame.quit()
                 sys.exit()
             
-            #Manejo de Clics de Botones
+            # --- MANEJO DE CLICS DEL MOUSE ---
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1: # Clic izquierdo
                     pos = pygame.mouse.get_pos()
-                    
-                    # Lógica del botón de INIT
-                    if btn_init.collidepoint(pos):
-                        # Solo funciona si estamos en preparación
-                        if current_state == GameState.PREPARATION:
-                            world.initialize_map_elements()
-                            
-                    # Lógica del botón de PLAY
-                    elif btn_play.collidepoint(pos):
-                        if current_state == GameState.PREPARATION or current_state == GameState.PAUSED:
-                            # Si estábamos en preparación, ahora el mapa está "fijado"
-                            if current_state == GameState.PREPARATION:
-                                # Validar que se haya inicializado el mapa
-                                if not world.resources:
-                                    print("Presiona 'Init' primero para generar el mapa.")
-                                    continue # No inicia el juego
 
+                    # --- Lógica si estamos en un MENÚ DE SELECCIÓN DE ARCHIVO ---
+                    if current_state in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY):
+                        for rect, filename in file_menu_buttons:
+                            if rect.collidepoint(pos):
+                                if filename == "CANCEL":
+                                    current_state = previous_state # Volver a PREPARATION o PAUSED
+                                
+                                # Si NO es "cancelar", es un archivo
+                                else:
+                                    try:
+                                        # -- Lógica dividida --
+                                        if current_state == GameState.SELECT_LOAD:
+                                            print(f"Cargando partida: {filename}")
+                                            with open(filename, 'rb') as f:
+                                                game_data = pickle.load(f)
+                                            load_game_from_data(game_data)
+                                            # (load_game_from_data ya pone el estado en PAUSED)
+                                        
+                                        elif current_state == GameState.SELECT_REPLAY:
+                                            print(f"Cargando replay: {filename}")
+                                            with open(filename, 'rb') as f:
+                                                replay_data = pickle.load(f) # Carga la lista de "fotos"
+                                            current_replay_frame = 0 # Reinicia el cabezal
+                                            current_state = GameState.REPLAYING # Inicia el modo replay
+                                            
+                                    except Exception as e:
+                                        print(f"Error al cargar el archivo {filename}: {e}")
+                                
+                                break # Salir del bucle for (ya encontramos un clic)
+                    
+                    # --- Lógica si estamos en el JUEGO (panel de control) ---
+                    elif current_state != GameState.GAME_OVER:
+                        if btn_init.collidepoint(pos) and current_state == GameState.PREPARATION:
+                            world.initialize_map_elements()
+                                
+                        elif btn_play.collidepoint(pos) and (current_state == GameState.PREPARATION or current_state == GameState.PAUSED):
+                            if current_state == GameState.PREPARATION and not world.resources:
+                                print("Presiona 'Init' primero para generar el mapa.")
+                                continue
                             current_state = GameState.PLAYING
-                    
-                    # Lógica del botón de PAUSE
-                    elif btn_pause.collidepoint(pos):
-                        # Solo funciona si estamos jugando
-                        if current_state == GameState.PLAYING:
-                            current_state = GameState.PAUSED
-                    
-                    elif btn_save.collidepoint(pos):
-                            # Solo se puede guardar si el juego ha comenzado
-                            if current_state == GameState.PLAYING or current_state == GameState.PAUSED:
-                                print("Guardando partida...")
-                                game_data = get_full_game_state()
-                                # Usamos "quicksave" como nombre. Más adelante podemos
-                                # hacer que el usuario escriba un nombre.
-                                db.save_game_state("quicksave", game_data)
-                            else:
-                                print("No se puede guardar: la simulación no ha comenzado.")
                         
-                        # (Aquí añadiremos los otros botones después)
-            
+                        elif btn_pause.collidepoint(pos) and current_state == GameState.PLAYING:
+                            current_state = GameState.PAUSED
+                        
+                        elif btn_save.collidepoint(pos) and (current_state == GameState.PLAYING or current_state == GameState.PAUSED):
+                            # ... (tu código de guardar partida no cambia) ...
+                            print("Guardando partida...")
+                            game_data = get_full_game_state()
+                            save_name = f"Partida_Guardada_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
+                            try:
+                                with open(save_name, 'wb') as f:
+                                    pickle.dump(game_data, f)
+                                print(f"¡Partida guardada exitosamente en {save_name}!")
+                            except Exception as e:
+                                print(f"Error al guardar partida: {e}")
+                        
+                        elif btn_load.collidepoint(pos) and (current_state == GameState.PREPARATION or current_state == GameState.PAUSED):
+                            print("Abriendo menú de Cargar Partida...")
+                            file_menu_cache = glob.glob("Partida_Guardada_*.pkl")
+                            file_menu_cache.sort(key=os.path.getctime, reverse=True)
+                            file_menu_scroll_offset = 0
+                            previous_state = current_state 
+                            current_state = GameState.SELECT_LOAD
+
+                        # --- NUEVO: Lógica del botón Replay ---
+                        elif btn_replay.collidepoint(pos) and (current_state == GameState.PREPARATION or current_state == GameState.PAUSED):
+                            print("Abriendo menú de Replay...")
+                            file_menu_cache = glob.glob("Replay_*.pkl")
+                            file_menu_cache.sort(key=os.path.getctime, reverse=True)
+                            file_menu_scroll_offset = 0
+                            previous_state = current_state
+                            current_state = GameState.SELECT_REPLAY
+
+            # --- MANEJO DE TECLADO ---
             if event.type == pygame.KEYDOWN:
-                # Teclas de atajo solo si estamos JUGANDO
-                if current_state == GameState.PLAYING:
+                if current_state in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY):
+                    # Scroll del menú de archivos con flechas
+                    if event.key == pygame.K_DOWN:
+                        file_menu_scroll_offset = min(file_menu_scroll_offset + 1, max(0, len(file_menu_cache) - 5))
+                    elif event.key == pygame.K_UP:
+                        file_menu_scroll_offset = max(0, file_menu_scroll_offset - 1)
+                    elif event.key == pygame.K_ESCAPE:
+                        current_state = previous_state # Salir con ESC
+
+                elif current_state == GameState.PLAYING:
                     if event.key == pygame.K_i:
                         world.relocate_g1_mines()
                 
-                # Tecla de reinicio solo si el juego TERMINÓ
-                if current_state == GameState.GAME_OVER:
+                elif current_state == GameState.GAME_OVER:
                     if event.key == pygame.K_r:
-                        main() # Llama a main de nuevo para reiniciar
+                        main()
                         return
 
         # Lógica del juego
         if current_state == GameState.PLAYING:
+            # 1. GRABAR FOTOGRAMA PARA REPLAY
+            # Guardamos la "foto" del estado actual ANTES de que algo se mueva
+            try:
+                replay_buffer.append(get_full_game_state())
+            except Exception as e:
+                print(f"Error al grabar fotograma de replay: {e}")
             game_time += 1
             world.update_g1_mines()
-            
+    
             # VERIFICAR SI SE TERMINARON LOS RECURSOS
             if len(world.resources) == 0 and not hasattr(world, 'ending_phase'):
                 # Iniciar fase de finalización
@@ -388,6 +632,17 @@ def main():
                 all_at_base = all(v.at_base or not v.alive for v in world.vehicles)
                 
                 if all_at_base or world.ending_timer > 300:  # 5 segundos máximo
+                    if replay_buffer:
+                        print("Guardando Replay (fin de recursos)...")
+                        replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
+                        try:
+                            with open(replay_name, 'wb') as f:
+                                pickle.dump(replay_buffer, f)
+                            print(f"Replay guardado exitosamente en {replay_name}")
+                        except Exception as e:
+                            print(f"Error al guardar el replay: {e}")
+                        replay_buffer.clear() # Limpiar para la próxima partida
+                            
                     current_state = GameState.GAME_OVER
             
             # Actualizar vehículos
@@ -437,7 +692,38 @@ def main():
                             v2.die()
             
             if game_time >= max_game_time:
+                if replay_buffer:
+                    print("Guardando Replay (fin de recursos)...")
+                    replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
+                    try:
+                        with open(replay_name, 'wb') as f:
+                            pickle.dump(replay_buffer, f)
+                        print(f"Replay guardado exitosamente en {replay_name}")
+                    except Exception as e:
+                        print(f"Error al guardar el replay: {e}")
+                    replay_buffer.clear() # Limpiar para la próxima partida
                 current_state = GameState.GAME_OVER
+                
+                        
+        elif current_state == GameState.REPLAYING:
+            # Modo "Reproductor de Video"
+            if current_replay_frame < len(replay_data):
+                try:
+                    # 1. Cargar el fotograma (la "foto")
+                    current_frame_data = replay_data[current_replay_frame]
+                    # 2. Reconstruir el estado (usa la misma función que Cargar)
+                    load_game_from_data(current_frame_data)
+                    # 3. Avanzar al siguiente fotograma
+                    current_replay_frame += 1
+                    # 4. Forzar el estado a PAUSA (para que se vea 1 fotograma)
+                    current_state = GameState.REPLAYING # Se mantiene en replay
+                except Exception as e:
+                    print(f"Error al reproducir fotograma de replay: {e}")
+                    current_state = GameState.PAUSED # Salir a pausa si hay error
+            else:
+                print("Replay finalizado.")
+                current_state = GameState.PAUSED # Queda en pausa al final
+                
 
         # Dibujo
         world.draw(screen)
@@ -473,7 +759,7 @@ def main():
             
             # Texto animado
             banner_font = pygame.font.SysFont("Arial", 24, bold=True)
-            text1 = banner_font.render("⚠ RECURSOS AGOTADOS ⚠", True, (255, 215, 0))
+            text1 = banner_font.render("RECURSOS AGOTADOS", True, (255, 215, 0))
             text1_rect = text1.get_rect(center=(constants.WIDTH//2, banner_y + 18))
             screen.blit(text1, text1_rect)
             
@@ -487,17 +773,26 @@ def main():
         draw_control_panel(screen, current_state)
         
         # Estado del juego
-        #Dibujo el menu de pausa 
-        # --- DIBUJAR ESTADOS SUPERPUESTOS (PAUSA, GAME OVER) ---
+        # --- DIBUJAR EL PANEL DE CONTROL FIJO ---
+        # (No lo dibujamos si estamos en un menú de selección)
+        if current_state not in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY):
+            draw_control_panel(screen, current_state)
+        
+        # --- DIBUJAR ESTADOS SUPERPUESTOS ---
         if current_state == GameState.PAUSED:
-            # Oscurece solo el MUNDO del juego
+            # ... (tu código de pausa no cambia) ...
             overlay = pygame.Surface((constants.WIDTH, constants.GAME_WORLD_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 120))
             screen.blit(overlay, (0, 0))
-            
             pause_text = FONT_TITLE.render("PAUSADO", True, (255, 255, 0))
             text_rect = pause_text.get_rect(center=(constants.WIDTH // 2, constants.GAME_WORLD_HEIGHT // 2))
             screen.blit(pause_text, text_rect)
+
+        elif current_state == GameState.SELECT_LOAD:
+            draw_file_selection_menu(screen, "Cargar Partida", file_menu_cache, file_menu_scroll_offset)
+        
+        elif current_state == GameState.SELECT_REPLAY:
+            draw_file_selection_menu(screen, "Seleccionar Replay", file_menu_cache, file_menu_scroll_offset)
         
         if current_state == GameState.GAME_OVER:
             overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)
@@ -517,7 +812,7 @@ def main():
             
             # Título
             title_font = pygame.font.SysFont("Arial", 32, bold=True)
-            title = title_font.render("🏁 JUEGO TERMINADO", True, (255, 255, 0))
+            title = title_font.render("JUEGO TERMINADO", True, (255, 255, 0))
             title_rect = title.get_rect(center=(constants.WIDTH//2, y_start + 20))
             screen.blit(title, title_rect)
             
@@ -526,13 +821,10 @@ def main():
             winner_font = pygame.font.SysFont("Arial", 28, bold=True)
             if p1_score > p2_score:
                 winner = winner_font.render("¡GANA JUGADOR 1!", True, (255, 100, 100))
-                winner_icon = "🔴"
             elif p2_score > p1_score:
                 winner = winner_font.render("¡GANA JUGADOR 2!", True, (100, 100, 255))
-                winner_icon = "🔵"
             else:
                 winner = winner_font.render("¡EMPATE!", True, (255, 255, 255))
-                winner_icon = "🤝"
             
             winner_rect = winner.get_rect(center=(constants.WIDTH//2, y_start))
             screen.blit(winner, winner_rect)

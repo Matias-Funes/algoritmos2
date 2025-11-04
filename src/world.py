@@ -143,7 +143,6 @@ class World:
     #Cargar
     def load_state(self, world_data):
         """Limpia el mundo y lo recrea a partir de los datos guardados."""
-        print("Cargando estado del mundo...")
         
         # 1. Limpiar todas las listas de objetos
         self.people.clear()

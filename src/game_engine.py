@@ -163,7 +163,7 @@ def main():
 
     current_state = GameState.PREPARATION
     game_time = 0
-    max_game_time = 7200  # 120 segundos
+    max_game_time = 300 # 120 segundos
     file_menu_cache = [] # Lista genérica para guardar archivos (partidas O replays)
     file_menu_buttons = [] # Lista genérica para los rects de los botones
     file_menu_scroll_offset = 0
@@ -379,7 +379,6 @@ def main():
         """
         Recopila el estado de todos los objetos del juego y lo empaqueta.
         """
-        print("Creando 'foto' del estado del juego...")
         # 1. Guardar el estado de todos los vehículos
         p1_vehicles_state = [v.get_state() for v in player1_vehicles]
         p2_vehicles_state = [v.get_state() for v in player2_vehicles]
@@ -402,7 +401,6 @@ def main():
         """
         nonlocal game_time, current_state # ¡Importante!
         
-        print("Cargando partida...")
         
         # 1. Restaurar el mundo
         world.load_state(data['world'])
@@ -495,7 +493,6 @@ def main():
         # 6. Restaurar el tiempo y pausar el juego
         game_time = data.get('game_time', 0)
         current_state = GameState.PAUSED # Carga la partida en pausa
-        print("¡Partida cargada! El juego está en pausa.")
     
     
     while True:
@@ -555,7 +552,6 @@ def main():
                             current_state = GameState.PAUSED
                         
                         elif btn_save.collidepoint(pos) and (current_state == GameState.PLAYING or current_state == GameState.PAUSED):
-                            # ... (tu código de guardar partida no cambia) ...
                             print("Guardando partida...")
                             game_data = get_full_game_state()
                             save_name = f"Partida_Guardada_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
@@ -780,7 +776,6 @@ def main():
         
         # --- DIBUJAR ESTADOS SUPERPUESTOS ---
         if current_state == GameState.PAUSED:
-            # ... (tu código de pausa no cambia) ...
             overlay = pygame.Surface((constants.WIDTH, constants.GAME_WORLD_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 120))
             screen.blit(overlay, (0, 0))

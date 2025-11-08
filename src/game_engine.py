@@ -163,7 +163,7 @@ def main():
 
     current_state = GameState.PREPARATION
     game_time = 0
-    max_game_time = 300 # 120 segundos
+    max_game_time = 7200 # 120 segundos
     file_menu_cache = [] # Lista genérica para guardar archivos (partidas O replays)
     file_menu_buttons = [] # Lista genérica para los rects de los botones
     file_menu_scroll_offset = 0
@@ -174,6 +174,10 @@ def main():
     replay_data = [] # Aquí se guarda el replay que estamos VIENDO
     current_replay_frame = 0 # El "cabezal" de la reproducción
     
+    stats_data = [] # Para guardar los datos de la DB
+    stats_menu_buttons = [] # Para los clics
+    stats_scroll_offset = 0
+    stats_saved_this_game = False # Flag para evitar guardar 60 veces por segundo
     
     #Definición de las áreas de los botones
     btn_height = 50
@@ -370,6 +374,51 @@ def main():
             pygame.draw.rect(surface, (150, 30, 30), btn_cancel_rect, border_radius=5)
         draw_button_text(surface, "Cancelar", btn_cancel_rect)
     
+    def draw_stats_menu(surface):
+        """Dibuja un menú superpuesto para mostrar el historial de partidas."""
+
+        # 1. Fondo oscuro y Panel
+        overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200))
+        surface.blit(overlay, (0, 0))
+        panel_width = 600
+        panel_height = 400
+        panel_x = constants.WIDTH // 2 - panel_width // 2
+        panel_y = constants.HEIGHT // 2 - panel_height // 2
+        draw_panel(surface, panel_x, panel_y, panel_width, panel_height, (40, 50, 60))
+
+        # 2. Título
+        title = FONT_TITLE.render("Historial de Partidas", True, (255, 215, 0))
+        title_rect = title.get_rect(center=(constants.WIDTH // 2, panel_y + 40))
+        surface.blit(title, title_rect)
+
+        # 3. Encabezados
+        y_pos = panel_y + 80
+        header_font = pygame.font.SysFont("Arial", 16, bold=True)
+        header1 = header_font.render("Fecha", True, (200, 200, 200))
+        header2 = header_font.render("Ganador", True, (200, 200, 200))
+        header3 = header_font.render("Puntajes (J1 / J2)", True, (200, 200, 200))
+        surface.blit(header1, (panel_x + 30, y_pos))
+        surface.blit(header2, (panel_x + 200, y_pos))
+        surface.blit(header3, (panel_x + 350, y_pos))
+        y_pos += 30
+
+        # 4. Dibujar la lista de estadísticas
+        stats_to_show = stats_data[stats_scroll_offset : stats_scroll_offset + 5]
+
+        for row in stats_to_show:
+            date, winner, p1_score, p2_score = row
+            
+            # Formatear datos
+            date_surf = FONT_NORMAL.render(date, True, (255, 255, 255))
+            winner_surf = FONT_NORMAL.render(str(winner), True, (255, 255, 255))
+            score_surf = FONT_NORMAL.render(f"{p1_score} / {p2_score}", True, (255, 215, 0))
+            
+            # Dibujar
+            surface.blit(date_surf, (panel_x + 30, y_pos))
+            surface.blit(winner_surf, (panel_x + 200, y_pos))
+            surface.blit(score_surf, (panel_x + 350, y_pos))
+            y_pos += 40
     
     # Variables para efectos
     last_p1_alive = 10
@@ -508,12 +557,12 @@ def main():
                     pos = pygame.mouse.get_pos()
 
                     # --- Lógica si estamos en un MENÚ DE SELECCIÓN DE ARCHIVO ---
-                    if current_state in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY):
+                    if current_state in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY, GameState.SHOW_STATS):
                         for rect, filename in file_menu_buttons:
                             if rect.collidepoint(pos):
                                 if filename == "CANCEL":
                                     current_state = previous_state # Volver a PREPARATION o PAUSED
-                                
+                                    is_in_replay_mode = False
                                 # Si NO es "cancelar", es un archivo
                                 else:
                                     try:
@@ -541,7 +590,8 @@ def main():
                     elif current_state != GameState.GAME_OVER:
                         if btn_init.collidepoint(pos) and current_state == GameState.PREPARATION:
                             world.initialize_map_elements()
-                                
+                            stats_saved_this_game = False
+                        
                         elif btn_play.collidepoint(pos) and (current_state == GameState.PREPARATION or current_state == GameState.PAUSED):
                             if current_state == GameState.PREPARATION and not world.resources:
                                 print("Presiona 'Init' primero para generar el mapa.")
@@ -570,7 +620,7 @@ def main():
                             previous_state = current_state 
                             current_state = GameState.SELECT_LOAD
 
-                        # --- NUEVO: Lógica del botón Replay ---
+                        # Lógica del botón Replay
                         elif btn_replay.collidepoint(pos) and (current_state == GameState.PREPARATION or current_state == GameState.PAUSED):
                             print("Abriendo menú de Replay...")
                             file_menu_cache = glob.glob("Replay_*.pkl")
@@ -578,10 +628,21 @@ def main():
                             file_menu_scroll_offset = 0
                             previous_state = current_state
                             current_state = GameState.SELECT_REPLAY
-
-            # --- MANEJO DE TECLADO ---
+                            
+                        elif btn_stats.collidepoint(pos) and (current_state == GameState.PREPARATION or current_state == GameState.PAUSED):
+                            print("Abriendo menú de Estadísticas...")
+                            try:
+                                stats_data = db.get_statistics() # Carga los datos
+                                stats_scroll_offset = 0
+                                # (Ya no creamos el botón "BACK" aquí)
+                                previous_state = current_state
+                                current_state = GameState.SHOW_STATS
+                            except Exception as e:
+                                print(f"Error al cargar estadísticas: {e}")
+                                
+            # MANEJO DE TECLADO
             if event.type == pygame.KEYDOWN:
-                if current_state in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY):
+                if current_state in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY, GameState.SHOW_STATS):
                     # Scroll del menú de archivos con flechas
                     if event.key == pygame.K_DOWN:
                         file_menu_scroll_offset = min(file_menu_scroll_offset + 1, max(0, len(file_menu_cache) - 5))
@@ -628,6 +689,19 @@ def main():
                 all_at_base = all(v.at_base or not v.alive for v in world.vehicles)
                 
                 if all_at_base or world.ending_timer > 300:  # 5 segundos máximo
+                    if not stats_saved_this_game:
+                        print("Guardando estadísticas de la partida...")
+                        p1_score = sum(v.score for v in player1_vehicles)
+                        p2_score = sum(v.score for v in player2_vehicles)
+                        winner = "Empate"
+                        if p1_score > p2_score:
+                            winner = "Jugador 1"
+                        elif p2_score > p1_score:
+                            winner = "Jugador 2"
+                        
+                        db.save_match_result(winner, p1_score, p2_score)
+                        stats_saved_this_game = True # Marcamos como guardado
+                    
                     if replay_buffer:
                         print("Guardando Replay (fin de recursos)...")
                         replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
@@ -688,6 +762,19 @@ def main():
                             v2.die()
             
             if game_time >= max_game_time:
+                if not stats_saved_this_game:
+                    print("Guardando estadísticas de la partida...")
+                    p1_score = sum(v.score for v in player1_vehicles)
+                    p2_score = sum(v.score for v in player2_vehicles)
+                    winner = "Empate"
+                    if p1_score > p2_score:
+                        winner = "Jugador 1"
+                    elif p2_score > p1_score:
+                        winner = "Jugador 2"
+                    
+                    db.save_match_result(winner, p1_score, p2_score)
+                    stats_saved_this_game = True # Marcamos como guardado
+                    
                 if replay_buffer:
                     print("Guardando Replay (fin de recursos)...")
                     replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
@@ -788,6 +875,9 @@ def main():
         
         elif current_state == GameState.SELECT_REPLAY:
             draw_file_selection_menu(screen, "Seleccionar Replay", file_menu_cache, file_menu_scroll_offset)
+        
+        elif current_state == GameState.SHOW_STATS:
+            draw_stats_menu(screen)
         
         if current_state == GameState.GAME_OVER:
             overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)

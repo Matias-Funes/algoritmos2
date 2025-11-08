@@ -70,7 +70,34 @@ class GameDatabase:
         else:
             print(f"No se encontró la partida guardada '{save_name}'.")
             return None
+        
+    def save_match_result(self, winner_name, p1_score, p2_score):
+        """
+        Guarda el resultado final de una partida en la tabla 'statistics'.
+        """
+        try:
+            self.cursor.execute("""
+                INSERT INTO statistics (date, winner, player1_score, player2_score)
+                VALUES (?, ?, ?, ?)
+            """, (
+                datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+                winner_name,
+                p1_score,
+                p2_score
+            ))
+            self.conn.commit()
+            print("Resultado de la partida guardado en estadísticas.")
+        except Exception as e:
+            print(f"Error al guardar estadísticas: {e}")
 
+    def get_statistics(self):
+        """
+        Obtiene todos los resultados de las partidas, ordenados por fecha.
+        """
+        self.cursor.execute("SELECT date, winner, player1_score, player2_score FROM statistics ORDER BY date DESC")
+        return self.cursor.fetchall() # Devuelve una lista de tuplas
+    
+    
     # (Dejamos tus funciones de 'players' / 'stats' si quieres usarlas para el botón Stats)
     def update_player_stats(self, player_name, score):
         # ... (tu código de update_player_stats se puede mantener aquí) ...

@@ -9,4 +9,5 @@ class GameState(Enum):
     GAME_OVER = 4
     SELECT_LOAD = 5
     SELECT_REPLAY = 6
-    REPLAYING = 7     
+    REPLAYING = 7   
+    SHOW_STATS = 8 

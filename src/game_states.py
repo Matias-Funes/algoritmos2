@@ -11,3 +11,4 @@ class GameState(Enum):
     SELECT_REPLAY = 6
     REPLAYING = 7   
     SHOW_STATS = 8 
+    REPLAY_PAUSED = 9

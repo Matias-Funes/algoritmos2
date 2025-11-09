@@ -163,7 +163,7 @@ def main():
 
     current_state = GameState.PREPARATION
     game_time = 0
-    max_game_time = 7200 # 120 segundos
+    max_game_time = 300 # 120 segundos
     file_menu_cache = [] # Lista genérica para guardar archivos (partidas O replays)
     file_menu_buttons = [] # Lista genérica para los rects de los botones
     file_menu_scroll_offset = 0
@@ -268,47 +268,24 @@ def main():
         surface.blit(text_surf, text_rect)
 
     #FUNCIÓN DE DIBUJO DEL PANEL
-    def draw_control_panel(surface, state):
+    def draw_control_panel(surface):
         """Dibuja el panel de control fijo en la parte inferior."""
         # Fondo del panel
         panel_rect = pygame.Rect(0, constants.UI_PANEL_Y, constants.WIDTH, constants.UI_PANEL_HEIGHT)
         draw_gradient_rect(surface, (30, 30, 40), (50, 50, 60), panel_rect)
         pygame.draw.line(surface, (100, 100, 110), (0, constants.UI_PANEL_Y), (constants.WIDTH, constants.UI_PANEL_Y), 2)
         
-        # --- Colores de Botones (con lógica de estado) ---
-        color_disabled = (40, 40, 40)
-        color_default = (80, 80, 90)
-        color_play = (60, 150, 60)
-        color_pause = (150, 60, 60)
-        
-        # Lógica de habilitación
-        init_enabled = state == GameState.PREPARATION
-        play_enabled = state == GameState.PREPARATION or state == GameState.PAUSED
-        pause_enabled = state == GameState.PLAYING
-        init_enabled = state == GameState.PREPARATION
-        play_enabled = state == GameState.PREPARATION or state == GameState.PAUSED
-        pause_enabled = state == GameState.PLAYING
-        save_enabled = state == GameState.PLAYING or state == GameState.PAUSED
-        load_enabled = state == GameState.PREPARATION or state == GameState.PAUSED # <-- AÑADE ESTA LÍNEA
-        
-        # Asignar colores
-        color_init = color_default if init_enabled else color_disabled
-        color_play_btn = color_play if play_enabled else color_disabled
-        color_pause_btn = color_pause if pause_enabled else color_disabled
-        
-        # Dibujar botones
+        # Dibujar botones (los colores vienen del bucle principal)
         pygame.draw.rect(surface, color_init, btn_init, border_radius=5)
         pygame.draw.rect(surface, color_play_btn, btn_play, border_radius=5)
         pygame.draw.rect(surface, color_pause_btn, btn_pause, border_radius=5)
         
-        # (El resto de botones por ahora)
-        pygame.draw.rect(surface, color_default, btn_step_back, border_radius=5)
-        pygame.draw.rect(surface, color_default, btn_step_fwd, border_radius=5)
-        pygame.draw.rect(surface, color_default, btn_save, border_radius=5)
-        color_load_btn = color_default if load_enabled else color_disabled
+        pygame.draw.rect(surface, color_default, btn_step_back, border_radius=5) # color_default está bien
+        pygame.draw.rect(surface, color_step_fwd, btn_step_fwd, border_radius=5)
+        pygame.draw.rect(surface, color_save_btn, btn_save, border_radius=5)
         pygame.draw.rect(surface, color_load_btn, btn_load, border_radius=5)
-        pygame.draw.rect(surface, color_default, btn_replay, border_radius=5)
-        pygame.draw.rect(surface, color_default, btn_stats, border_radius=5)
+        pygame.draw.rect(surface, color_default, btn_replay, border_radius=5) # color_default está bien
+        pygame.draw.rect(surface, color_default, btn_stats, border_radius=5) # color_default está bien
         
         # --- Dibujar texto de botones ---
         draw_button_text(surface, "Init", btn_init)
@@ -450,7 +427,6 @@ def main():
         """
         nonlocal game_time, current_state # ¡Importante!
         
-        
         # 1. Restaurar el mundo
         world.load_state(data['world'])
         
@@ -470,11 +446,22 @@ def main():
         for v_data in data.get('player1_vehicles', []):
             v_type = v_data.get('vehicle_type')
             if v_type in vehicle_classes:
-                # Crear la nueva instancia del vehículo
                 cls = vehicle_classes[v_type]
-                new_v = cls(v_data['id'], v_data['x'], v_data['y'], 
-                            v_data['base_position'], v_data['color'])
                 
+                # --- INICIO DE CORRECCIÓN ---
+                # Leemos la celda (gx, gy) del archivo guardado
+                g_x = v_data['gx']
+                g_y = v_data['gy']
+                # Convertimos la celda (gx, gy) de nuevo a los píxeles (x, y)
+                # que el __init__ de Vehicle espera.
+                p_x = g_x * constants.TILE
+                p_y = g_y * constants.TILE
+                
+                # Pasamos los píxeles (p_x, p_y) al constructor
+                new_v = cls(v_data['id'], p_x, p_y, 
+                            v_data['base_position_pixels'], v_data['color'])
+                # --- FIN DE CORRECCIÓN ---
+
                 # Restaurar todos los atributos guardados
                 new_v.trips_left = v_data.get('trips_left', 1)
                 new_v.alive = v_data.get('alive', True)
@@ -482,17 +469,23 @@ def main():
                 new_v.returning_to_base = v_data.get('returning_to_base', False)
                 new_v.at_base = v_data.get('at_base', False)
                 new_v.forced_return = v_data.get('forced_return', False)
-                new_v.speed = v_data.get('speed', 2)
+                
+                # --- CORRECCIÓN DE VELOCIDAD ---
+                # Usamos la nueva variable 'speed_pixels_per_update'
+                new_v.speed_pixels_per_update = v_data.get('speed_pixels_per_update', 1.5)
 
                 # Reconstruir la carga (importante!)
                 new_v.cargo = []
                 for item_type in v_data.get('cargo', []):
+                    # (Tu lógica aquí es funcional, solo creamos objetos temporales)
                     if item_type == 'person':
-                        # Creamos un objeto 'Person' temporal. Solo nos importa su .value
-                        new_v.cargo.append(Person(0,0)) 
-                    elif item_type in constants.MERCH_COUNTS:
-                        # Creamos un objeto 'Merchandise' temporal.
-                        new_v.cargo.append(Merchandise(0,0, item_type))
+                        p_obj = Person(0,0)
+                        p_obj.value = constants.POINTS_PERSON
+                        new_v.cargo.append(p_obj) 
+                    elif item_type in constants.MERCH_POINTS:
+                        m_obj = Merchandise(0,0, item_type)
+                        m_obj.value = constants.MERCH_POINTS.get(item_type, 0)
+                        new_v.cargo.append(m_obj)
                 
                 # Restaurar el "cerebro" (la estrategia)
                 strategy_name = v_data.get('strategy_name')
@@ -508,8 +501,16 @@ def main():
             v_type = v_data.get('vehicle_type')
             if v_type in vehicle_classes:
                 cls = vehicle_classes[v_type]
-                new_v = cls(v_data['id'], v_data['x'], v_data['y'], 
-                            v_data['base_position'], v_data['color'])
+                
+                # --- INICIO DE CORRECCIÓN ---
+                g_x = v_data['gx']
+                g_y = v_data['gy']
+                p_x = g_x * constants.TILE
+                p_y = g_y * constants.TILE
+                
+                new_v = cls(v_data['id'], p_x, p_y, 
+                            v_data['base_position_pixels'], v_data['color'])
+                # --- FIN DE CORRECCIÓN ---
                 
                 # (Copiar y pegar la misma lógica de restauración de atributos de arriba)
                 new_v.trips_left = v_data.get('trips_left', 1)
@@ -518,33 +519,201 @@ def main():
                 new_v.returning_to_base = v_data.get('returning_to_base', False)
                 new_v.at_base = v_data.get('at_base', False)
                 new_v.forced_return = v_data.get('forced_return', False)
-                new_v.speed = v_data.get('speed', 2)
+                
+                # --- CORRECCIÓN DE VELOCIDAD ---
+                new_v.speed_pixels_per_update = v_data.get('speed_pixels_per_update', 1.5)
                 
                 new_v.cargo = []
                 for item_type in v_data.get('cargo', []):
                     if item_type == 'person':
-                        new_v.cargo.append(Person(0,0))
-                    elif item_type in constants.MERCH_COUNTS:
-                        new_v.cargo.append(Merchandise(0,0, item_type))
+                        p_obj = Person(0,0)
+                        p_obj.value = constants.POINTS_PERSON
+                        new_v.cargo.append(p_obj)
+                    elif item_type in constants.MERCH_POINTS:
+                        m_obj = Merchandise(0,0, item_type)
+                        m_obj.value = constants.MERCH_POINTS.get(item_type, 0)
+                        new_v.cargo.append(m_obj)
                 
-                # Restaurar el "cerebro" (la estrategia)
                 strategy_name = v_data.get('strategy_name')
                 if strategy_name in STRATEGY_MAP:
-                    new_v.strategy = STRATEGY_MAP[strategy_name]() # Crea una nueva instancia
+                    new_v.strategy = STRATEGY_MAP[strategy_name]()
                 else:
                     new_v.strategy = None
-                     
+                        
                 player2_vehicles.append(new_v)
 
         # 5. Actualizar la lista de vehículos del mundo
         world.vehicles = player1_vehicles + player2_vehicles
+        world.player1_vehicles = player1_vehicles
+        world.player2_vehicles = player2_vehicles
         
         # 6. Restaurar el tiempo y pausar el juego
         game_time = data.get('game_time', 0)
-        current_state = GameState.PAUSED # Carga la partida en pausa
     
+    
+    def run_game_logic_tick():
+        """
+        Ejecuta UN SOLO fotograma (tick) de la lógica del juego.
+        Devuelve True si ocurrió un evento lógico, False si solo fue animación.
+        """
+        nonlocal game_time, current_state, stats_saved_this_game, replay_buffer
+        nonlocal last_p1_alive, last_p2_alive
+        
+        # El tick empieza asumiendo que es SÓLO animación
+        a_logical_update_happened = False
+        
+        game_time += 1
+        
+        # 1. Actualizar minas (ahora SÍ devuelve si algo cambió)
+        if world.update_g1_mines():
+             a_logical_update_happened = True
+
+        # 2. LÓGICA DE FIN DE JUEGO (RECURSOS)
+        if len(world.resources) == 0 and not hasattr(world, 'ending_phase'):
+            a_logical_update_happened = True # Iniciar el fin es un evento lógico
+            world.ending_phase = True
+            world.ending_timer = 0
+            for vehicle in world.vehicles:
+                if vehicle.alive:
+                    vehicle.force_return_to_base()
+        
+        if hasattr(world, 'ending_phase') and world.ending_phase:
+            world.ending_timer += 1
+            all_at_base = all(v.at_base or not v.alive for v in world.vehicles)
+            
+            if all_at_base or world.ending_timer > 300: 
+                if not stats_saved_this_game:
+                    print("Guardando estadísticas de la partida (recursos)...")
+                    p1_score = sum(v.score for v in player1_vehicles)
+                    p2_score = sum(v.score for v in player2_vehicles)
+                    winner = "Empate"
+                    if p1_score > p2_score: winner = "Jugador 1"
+                    elif p2_score > p1_score: winner = "Jugador 2"
+                    db.save_match_result(winner, p1_score, p2_score)
+                    stats_saved_this_game = True
+                
+                if replay_buffer:
+                    print("Guardando Replay (fin de recursos)...")
+                    replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
+                    try:
+                        with open(replay_name, 'wb') as f:
+                            pickle.dump(replay_buffer, f)
+                        print(f"Replay guardado exitosamente en {replay_name}")
+                    except Exception as e:
+                        print(f"Error al guardar el replay: {e}")
+                    replay_buffer.clear()
+                
+                current_state = GameState.GAME_OVER
+                return True # Fin del juego es un evento lógico
+
+        # 3. ACTUALIZAR VEHÍCULOS
+        for vehicle in world.vehicles:
+            if vehicle.alive:
+                if vehicle.update(world): # Devuelve True si fue un tick LÓGICO
+                    a_logical_update_happened = True 
+        
+        # 4. DETECTAR DESTRUCCIONES
+        p1_alive = sum(1 for v in player1_vehicles if v.alive)
+        p2_alive = sum(1 for v in player2_vehicles if v.alive)
+        
+        if p1_alive < last_p1_alive:
+            a_logical_update_happened = True
+            for v in player1_vehicles:
+                if not v.alive and hasattr(v, 'last_x'):
+                    create_explosion(v.last_x, v.last_y, (255, 0, 0))
+        
+        if p2_alive < last_p2_alive:
+            a_logical_update_happened = True
+            for v in player2_vehicles:
+                if not v.alive and hasattr(v, 'last_x'):
+                    create_explosion(v.last_x, v.last_y, (0, 0, 255))
+        
+        last_p1_alive = p1_alive
+        last_p2_alive = p2_alive
+        
+        for v in world.vehicles:
+            if v.alive:
+                v.last_x = v.x
+                v.last_y = v.y
+        
+        # 5. COLISIONES FÍSICAS (ENEMIGOS)
+        for v1 in player1_vehicles:
+            if not v1.alive: continue
+            v1_at_base = (v1.gx == v1.base_gx and v1.gy == v1.base_gy)
+            
+            for v2 in player2_vehicles:
+                if not v2.alive: continue
+                if v1.gx == v2.gx and v1.gy == v2.gy:
+                    v2_at_base = (v2.gx == v2.base_gx and v2.gy == v2.base_gy)
+                    if not v1_at_base and not v2_at_base:
+                        a_logical_update_happened = True # ¡Colisión!
+                        create_explosion(v1.x, v1.y, (255, 128, 0)) 
+                        v1.die()
+                        v2.die()
+        
+        # 6. LÓGICA DE FIN DE JUEGO (TIEMPO)
+        if game_time >= max_game_time:
+            if not stats_saved_this_game:
+                print("Guardando estadísticas de la partida (tiempo)...")
+                p1_score = sum(v.score for v in player1_vehicles)
+                p2_score = sum(v.score for v in player2_vehicles)
+                winner = "Empate"
+                if p1_score > p2_score:
+                    winner = "Jugador 1"
+                elif p2_score > p1_score:
+                    winner = "Jugador 2"
+                
+                db.save_match_result(winner, p1_score, p2_score)
+                stats_saved_this_game = True
+            
+            if replay_buffer:
+                print("Guardando Replay (fin de tiempo)...")
+                replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
+                try:
+                    with open(replay_name, 'wb') as f:
+                        pickle.dump(replay_buffer, f)
+                    print(f"Replay guardado exitosamente en {replay_name}")
+                except Exception as e:
+                    print(f"Error al guardar el replay: {e}")
+                replay_buffer.clear()
+            
+            current_state = GameState.GAME_OVER
+            return True # Fin del juego es lógico
+
+        # 7. GRABAR FOTOGRAMA PARA REPLAY
+        if a_logical_update_happened:
+            try:
+                replay_buffer.append(get_full_game_state())
+            except Exception as e:
+                print(f"Error al grabar fotograma de replay: {e}")
+
+        # 8. Devolver si fue un tick lógico
+        return a_logical_update_happened
     
     while True:
+        
+        # --- Colores de Botones (con lógica de estado) ---
+        color_disabled = (40, 40, 40)
+        color_default = (80, 80, 90)
+        color_play = (60, 150, 60)
+        color_pause = (150, 60, 60)
+
+        # Lógica de habilitación (usa "current_state" en lugar de "state")
+        init_enabled = current_state == GameState.PREPARATION
+        play_enabled = current_state in (GameState.PREPARATION, GameState.PAUSED, GameState.REPLAY_PAUSED)
+        pause_enabled = current_state in (GameState.PLAYING, GameState.REPLAYING)
+        save_enabled = current_state in (GameState.PLAYING, GameState.PAUSED)
+        load_enabled = current_state in (GameState.PREPARATION, GameState.PAUSED)
+        step_fwd_enabled = current_state in (GameState.PAUSED, GameState.REPLAY_PAUSED)
+        
+        # Asignar colores
+        color_init = color_default if init_enabled else color_disabled
+        color_play_btn = color_play if play_enabled else color_disabled
+        color_pause_btn = color_pause if pause_enabled else color_disabled
+        color_save_btn = color_default if save_enabled else color_disabled
+        color_load_btn = color_default if load_enabled else color_disabled
+        color_step_fwd = color_default if step_fwd_enabled else color_disabled
+        
         # Bucle y manejo de eventos al pausar 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -572,7 +741,7 @@ def main():
                                             with open(filename, 'rb') as f:
                                                 game_data = pickle.load(f)
                                             load_game_from_data(game_data)
-                                            # (load_game_from_data ya pone el estado en PAUSED)
+                                            current_state = GameState.PAUSED
                                         
                                         elif current_state == GameState.SELECT_REPLAY:
                                             print(f"Cargando replay: {filename}")
@@ -586,22 +755,54 @@ def main():
                                 
                                 break # Salir del bucle for (ya encontramos un clic)
                     
-                    # --- Lógica si estamos en el JUEGO (panel de control) ---
+                    # Lógica si estamos en el JUEGO (panel de control)
                     elif current_state != GameState.GAME_OVER:
                         if btn_init.collidepoint(pos) and current_state == GameState.PREPARATION:
                             world.initialize_map_elements()
                             stats_saved_this_game = False
                         
-                        elif btn_play.collidepoint(pos) and (current_state == GameState.PREPARATION or current_state == GameState.PAUSED):
-                            if current_state == GameState.PREPARATION and not world.resources:
-                                print("Presiona 'Init' primero para generar el mapa.")
-                                continue
-                            current_state = GameState.PLAYING
+                        elif btn_play.collidepoint(pos) and play_enabled: # Usamos la variable de estado
+                            if current_state == GameState.REPLAY_PAUSED:
+                                current_state = GameState.REPLAYING # Reanuda el replay
+                            else:
+                                if current_state == GameState.PREPARATION and not world.resources:
+                                    print("Presiona 'Init' primero para generar el mapa.")
+                                    continue
+                                current_state = GameState.PLAYING
                         
-                        elif btn_pause.collidepoint(pos) and current_state == GameState.PLAYING:
-                            current_state = GameState.PAUSED
+                        elif btn_pause.collidepoint(pos) and pause_enabled: # Usamos la variable de estado
+                            if current_state == GameState.PLAYING:
+                                current_state = GameState.PAUSED # Pausa el juego
+                            elif current_state == GameState.REPLAYING:
+                                current_state = GameState.REPLAY_PAUSED # Pausa el replay
                         
-                        elif btn_save.collidepoint(pos) and (current_state == GameState.PLAYING or current_state == GameState.PAUSED):
+                        elif btn_step_fwd.collidepoint(pos) and step_fwd_enabled:
+                            
+                            # Opción 1: Estamos en un JUEGO pausado
+                            if current_state == GameState.PAUSED:
+                                print("Avanzando al SIGUIENTE EVENTO LÓGICO...")
+                                # Ejecutamos la lógica en un bucle HASTA que
+                                # ocurra un evento lógico (o 1000 frames)
+                                for _ in range(1000): # (Límite de seguridad)
+                                    if run_game_logic_tick(): # Devuelve True si fue lógico
+                                        break # Encontramos un evento
+                                    if current_state != GameState.PAUSED: # El juego terminó
+                                        break 
+                            
+                            # Opción 2: Estamos en un REPLAY pausado
+                            elif current_state == GameState.REPLAY_PAUSED:
+                                print("Avanzando un frame de REPLAY...")
+                                # (Esta lógica ya está bien, porque el replay
+                                # ahora SÓLO contiene frames lógicos)
+                                current_replay_frame += 1 
+                                if current_replay_frame < len(replay_data):
+                                    current_frame_data = replay_data[current_replay_frame]
+                                    load_game_from_data(current_frame_data)
+                                else:
+                                    print("Replay finalizado.")
+                                    current_state = GameState.GAME_OVER
+                        
+                        elif btn_save.collidepoint(pos) and save_enabled:
                             print("Guardando partida...")
                             game_data = get_full_game_state()
                             save_name = f"Partida_Guardada_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
@@ -642,14 +843,24 @@ def main():
                                 
             # MANEJO DE TECLADO
             if event.type == pygame.KEYDOWN:
-                if current_state in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY, GameState.SHOW_STATS):
-                    # Scroll del menú de archivos con flechas
-                    if event.key == pygame.K_DOWN:
-                        file_menu_scroll_offset = min(file_menu_scroll_offset + 1, max(0, len(file_menu_cache) - 5))
-                    elif event.key == pygame.K_UP:
-                        file_menu_scroll_offset = max(0, file_menu_scroll_offset - 1)
-                    elif event.key == pygame.K_ESCAPE:
-                        current_state = previous_state # Salir con ESC
+                # Comprobación de estados de menú O de replay
+                if current_state in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY, GameState.SHOW_STATS, 
+                                     GameState.REPLAYING, GameState.REPLAY_PAUSED):
+                    
+                    if event.key == pygame.K_ESCAPE:
+                        if current_state in (GameState.REPLAYING, GameState.REPLAY_PAUSED):
+                            # Si salimos del replay, limpiamos los datos
+                            print("Saliendo del replay...")
+                            replay_data.clear()
+                            current_replay_frame = 0
+                        current_state = previous_state # Salir con ESC a la pantalla anterior
+                    
+                    # Scroll (solo si estamos en menú de stats/archivos)
+                    elif current_state in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY, GameState.SHOW_STATS):
+                        if event.key == pygame.K_DOWN:
+                            file_menu_scroll_offset = min(file_menu_scroll_offset + 1, max(0, len(file_menu_cache) - 5))
+                        elif event.key == pygame.K_UP:
+                            file_menu_scroll_offset = max(0, file_menu_scroll_offset - 1)
 
                 elif current_state == GameState.PLAYING:
                     if event.key == pygame.K_i:
@@ -662,132 +873,8 @@ def main():
 
         # Lógica del juego
         if current_state == GameState.PLAYING:
-            # 1. GRABAR FOTOGRAMA PARA REPLAY
-            # Guardamos la "foto" del estado actual ANTES de que algo se mueva
-            try:
-                replay_buffer.append(get_full_game_state())
-            except Exception as e:
-                print(f"Error al grabar fotograma de replay: {e}")
-            game_time += 1
-            world.update_g1_mines()
-    
-            # VERIFICAR SI SE TERMINARON LOS RECURSOS
-            if len(world.resources) == 0 and not hasattr(world, 'ending_phase'):
-                # Iniciar fase de finalización
-                world.ending_phase = True
-                world.ending_timer = 0
-                # Forzar a todos los vehículos a regresar
-                for vehicle in world.vehicles:
-                    if vehicle.alive:
-                        vehicle.force_return_to_base()
-            
-            # Si está en fase de finalización
-            if hasattr(world, 'ending_phase') and world.ending_phase:
-                world.ending_timer += 1
-                
-                # Verificar si todos llegaron a base o pasó tiempo suficiente
-                all_at_base = all(v.at_base or not v.alive for v in world.vehicles)
-                
-                if all_at_base or world.ending_timer > 300:  # 5 segundos máximo
-                    if not stats_saved_this_game:
-                        print("Guardando estadísticas de la partida...")
-                        p1_score = sum(v.score for v in player1_vehicles)
-                        p2_score = sum(v.score for v in player2_vehicles)
-                        winner = "Empate"
-                        if p1_score > p2_score:
-                            winner = "Jugador 1"
-                        elif p2_score > p1_score:
-                            winner = "Jugador 2"
-                        
-                        db.save_match_result(winner, p1_score, p2_score)
-                        stats_saved_this_game = True # Marcamos como guardado
-                    
-                    if replay_buffer:
-                        print("Guardando Replay (fin de recursos)...")
-                        replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
-                        try:
-                            with open(replay_name, 'wb') as f:
-                                pickle.dump(replay_buffer, f)
-                            print(f"Replay guardado exitosamente en {replay_name}")
-                        except Exception as e:
-                            print(f"Error al guardar el replay: {e}")
-                        replay_buffer.clear() # Limpiar para la próxima partida
-                            
-                    current_state = GameState.GAME_OVER
-            
-            # Actualizar vehículos
-            for vehicle in world.vehicles:
-                if vehicle.alive:
-                    vehicle.update(world)
-            
-            # Detectar destrucciones para efectos
-            p1_alive = sum(1 for v in player1_vehicles if v.alive)
-            p2_alive = sum(1 for v in player2_vehicles if v.alive)
-            
-            if p1_alive < last_p1_alive:
-                # Encontrar vehículo destruido
-                for v in player1_vehicles:
-                    if not v.alive and hasattr(v, 'last_x'):
-                        create_explosion(v.last_x, v.last_y, (255, 0, 0))
-            
-            if p2_alive < last_p2_alive:
-                for v in player2_vehicles:
-                    if not v.alive and hasattr(v, 'last_x'):
-                        create_explosion(v.last_x, v.last_y, (0, 0, 255))
-            
-            last_p1_alive = p1_alive
-            last_p2_alive = p2_alive
-            
-            # Guardar última posición para explosiones
-            for v in world.vehicles:
-                if v.alive:
-                    v.last_x = v.x
-                    v.last_y = v.y
-            
-            # Colisiones entre jugadores
-            for v1 in player1_vehicles:
-                if not v1.alive:
-                    continue
-                for v2 in player2_vehicles:
-                    if not v2.alive:
-                        continue
-                    dist = math.hypot(v1.x - v2.x, v1.y - v2.y)
-                    if dist < (v1.size + v2.size) / 2 + 5:
-                        v1_at_base = v1.distance_to_point(*v1.base_position) < 50
-                        v2_at_base = v2.distance_to_point(*v2.base_position) < 50
-                        
-                        if not v1_at_base and not v2_at_base:
-                            create_explosion(v1.x, v1.y, (255, 128, 0))
-                            v1.die()
-                            v2.die()
-            
-            if game_time >= max_game_time:
-                if not stats_saved_this_game:
-                    print("Guardando estadísticas de la partida...")
-                    p1_score = sum(v.score for v in player1_vehicles)
-                    p2_score = sum(v.score for v in player2_vehicles)
-                    winner = "Empate"
-                    if p1_score > p2_score:
-                        winner = "Jugador 1"
-                    elif p2_score > p1_score:
-                        winner = "Jugador 2"
-                    
-                    db.save_match_result(winner, p1_score, p2_score)
-                    stats_saved_this_game = True # Marcamos como guardado
-                    
-                if replay_buffer:
-                    print("Guardando Replay (fin de recursos)...")
-                    replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
-                    try:
-                        with open(replay_name, 'wb') as f:
-                            pickle.dump(replay_buffer, f)
-                        print(f"Replay guardado exitosamente en {replay_name}")
-                    except Exception as e:
-                        print(f"Error al guardar el replay: {e}")
-                    replay_buffer.clear() # Limpiar para la próxima partida
-                current_state = GameState.GAME_OVER
-                
-                        
+            run_game_logic_tick()
+                          
         elif current_state == GameState.REPLAYING:
             # Modo "Reproductor de Video"
             if current_replay_frame < len(replay_data):
@@ -805,7 +892,7 @@ def main():
                     current_state = GameState.PAUSED # Salir a pausa si hay error
             else:
                 print("Replay finalizado.")
-                current_state = GameState.PAUSED # Queda en pausa al final
+                current_state = GameState.GAME_OVER
                 
 
         # Dibujo
@@ -853,13 +940,13 @@ def main():
         
         # --- DIBUJAR EL PANEL DE CONTROL FIJO ---
         # (Se dibuja siempre, encima del HUD pero debajo de los pop-ups)
-        draw_control_panel(screen, current_state)
+        draw_control_panel(screen)
         
         # Estado del juego
         # --- DIBUJAR EL PANEL DE CONTROL FIJO ---
         # (No lo dibujamos si estamos en un menú de selección)
-        if current_state not in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY):
-            draw_control_panel(screen, current_state)
+        if current_state not in (GameState.SELECT_LOAD, GameState.SELECT_REPLAY, GameState.SHOW_STATS):
+            draw_control_panel(screen)
         
         # --- DIBUJAR ESTADOS SUPERPUESTOS ---
         if current_state == GameState.PAUSED:
@@ -870,6 +957,24 @@ def main():
             text_rect = pause_text.get_rect(center=(constants.WIDTH // 2, constants.GAME_WORLD_HEIGHT // 2))
             screen.blit(pause_text, text_rect)
 
+        elif current_state == GameState.REPLAY_PAUSED:
+            overlay = pygame.Surface((constants.WIDTH, constants.GAME_WORLD_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 120))
+            screen.blit(overlay, (0, 0))
+            
+            # Texto principal "REPLAY PAUSADO"
+            pause_text = FONT_TITLE.render("REPLAY PAUSADO", True, (100, 200, 255))
+            # (Lo centramos un poco más arriba)
+            text_rect = pause_text.get_rect(center=(constants.WIDTH // 2, constants.GAME_WORLD_HEIGHT // 2 - 15))
+            screen.blit(pause_text, text_rect)
+            
+            # Instrucción "Presiona ESC para salir" (NUEVO)
+            # (Usamos FONT_NORMAL, que ya está definida al inicio de main)
+            esc_text = FONT_NORMAL.render("Presiona ESC para salir", True, (200, 200, 200))
+            # (La centramos 30px por debajo del texto principal)
+            esc_rect = esc_text.get_rect(center=(constants.WIDTH // 2, constants.GAME_WORLD_HEIGHT // 2 + 15))
+            screen.blit(esc_text, esc_rect)
+        
         elif current_state == GameState.SELECT_LOAD:
             draw_file_selection_menu(screen, "Cargar Partida", file_menu_cache, file_menu_scroll_offset)
         

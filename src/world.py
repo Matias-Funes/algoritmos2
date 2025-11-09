@@ -4,6 +4,8 @@ from .elements import Tree, Person, Merchandise, Mine
 import random 
 import os
 import math
+from . import pathfinding
+
 
 class World:
     def __init__(self, width, height):
@@ -271,10 +273,16 @@ class World:
                     attempts += 1
                     
     def update_g1_mines(self):
-        """Actualiza minas dinámicas G1"""
+        """
+        Actualiza minas dinámicas G1.
+        Devuelve True si ALGUNA mina cambió de estado.
+        """
+        a_mine_changed = False
         for mine in self.mines:
             if mine.type == "G1":
-                mine.update()
+                if mine.update(): # mine.update() ahora devuelve True si cambió
+                    a_mine_changed = True
+        return a_mine_changed
 
     def relocate_g1_mines(self):
         """Reubica minas G1"""
@@ -303,10 +311,15 @@ class World:
         return gx * constants.TILE, gy * constants.TILE
 
     def is_walkable(self, gx, gy):
-        """Verifica si una celda es caminable"""
+        """
+        Verifica si una celda es caminable para el ALGORITMO A*.
+        """
         if gx < 0 or gy < 0 or gx >= constants.GRID_WIDTH or gy >= constants.GRID_HEIGHT:
-            return False
-        return self.grid[gy][gx] in (0, 2, 3, 4)
+            return False # Fuera del mapa
+            
+        # Es caminable si es 0 (suelo), 2 (persona) o 3 (mercancía).
+        # NO es caminable si es 1 (árbol) o 4 (mina).
+        return self.grid[gy][gx] in (0, 2, 3)
 
     def get_neighbors(self, gx, gy):
         """Obtiene celdas adyacentes válidas"""

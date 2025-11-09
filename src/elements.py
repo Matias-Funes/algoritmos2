@@ -171,12 +171,17 @@ class Mine:
                 pygame.draw.circle(self.image, (255, 255, 0), (self.size//2, self.size//2), 2)
 
     def update(self):
-        """Actualiza el estado de la mina (solo G1)"""
+        """
+        Actualiza el estado de la mina (solo G1).
+        Devuelve True si cambió de estado, False si no.
+        """
         if self.type == "G1":
             self.toggle_timer += 1
             if self.toggle_timer >= constants.G1_TOGGLE_TIME:
                 self.active = not self.active
                 self.toggle_timer = 0
+                return True # Cambió de estado
+        return False # No cambió
 
     def draw(self, screen):
         """Dibuja la mina y su área de efecto"""

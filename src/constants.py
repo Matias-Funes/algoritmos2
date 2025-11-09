@@ -12,6 +12,8 @@ MERCH_POINTS = {
     "weapons": 50  # Armamentos según PDF
 }
 
+BASE_RADIUS_PIXELS = 50 # Radio de la base en píxeles (basado en game_engine)
+
 # Distribución de mercancías (total debe ser 50 según PDF)
 MERCH_COUNTS = {
     "clothes": 15,    # Ropa
@@ -43,13 +45,7 @@ BLUE = (0, 0, 255)
 BROWN = (139, 69, 19)
 RED = (255, 0, 0)
 
-# Cantidades
-NUM_TREES = 10
-NUM_PEOPLE = 10
-NUM_MERCH = 50
-
 # Puntos
-POINTS_PERSON = 50
 MERCH_POINTS = {
     "clothes": 5,
     "food": 10,

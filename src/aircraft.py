@@ -108,14 +108,14 @@ class Vehicle:
             
             body_color = self.color
             lighter = tuple(min(c + 60, 255) for c in body_color[:3])
+            darker = tuple(max(c - 30, 0) for c in body_color[:3])
             
             # Cuerpo alargado
             pygame.draw.ellipse(surface, body_color, (7, 6, self.size-14, self.size-12))
             pygame.draw.ellipse(surface, lighter, (7, 6, self.size-14, 6))
             
             # Tanque de combustible
-            pygame.draw.ellipse(surface, darker if 'darker' in locals() else body_color, 
-                              (9, center-3, self.size-18, 8))
+            pygame.draw.ellipse(surface, darker, (9, center-3, self.size-18, 8))
             
             # Asiento
             pygame.draw.rect(surface, (50, 50, 50), (8, center, self.size-16, 4), border_radius=2)
@@ -179,7 +179,7 @@ class Vehicle:
             pygame.draw.rect(surface, (100, 100, 100), (6, 4, self.size-12, 2))
             
         elif self.vehicle_type == "auto":
-            # AUTO sedan elegante
+            # AUTO sedan elegante - VISTA SUPERIOR VERTICAL (no tumbado)
             
             # Sombra
             shadow = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
@@ -190,40 +190,60 @@ class Vehicle:
             lighter = tuple(min(c + 60, 255) for c in body_color[:3])
             darker = tuple(max(c - 30, 0) for c in body_color[:3])
             
-            # Carrocería inferior
-            pygame.draw.ellipse(surface, body_color, (4, 10, self.size-8, self.size-16))
-            pygame.draw.ellipse(surface, lighter, (4, 10, self.size-8, 5))
+            # Carrocería principal (cuerpo vertical del auto)
+            # Parte trasera del auto
+            pygame.draw.rect(surface, darker, (6, self.size-14, self.size-12, 8), border_radius=3)
             
-            # Techo (habitáculo)
-            pygame.draw.rect(surface, darker, (7, 6, self.size-14, 10), border_radius=3)
-            pygame.draw.rect(surface, body_color, (7, 6, self.size-14, 4), border_radius=3)
+            # Parte central del auto
+            pygame.draw.rect(surface, body_color, (5, 8, self.size-10, self.size-16), border_radius=3)
             
-            # Ventanas laterales con brillo
-            pygame.draw.polygon(surface, (100, 150, 200), [(9, 8), (9, 13), (11, 11), (11, 10)])
-            pygame.draw.polygon(surface, (100, 150, 200), [(self.size-9, 8), (self.size-9, 13), 
-                                                           (self.size-11, 11), (self.size-11, 10)])
-            # Brillo
-            pygame.draw.line(surface, (180, 220, 255), (9, 8), (10, 9), 1)
-            pygame.draw.line(surface, (180, 220, 255), (self.size-9, 8), (self.size-10, 9), 1)
+            # Capó brillante (parte delantera)
+            pygame.draw.rect(surface, lighter, (6, 6, self.size-12, 6), border_radius=3)
             
-            # Capó
-            pygame.draw.rect(surface, lighter, (6, 8, self.size-12, 3))
+            # Techo/cabina (ventanas)
+            pygame.draw.rect(surface, (100, 150, 200), (7, 10, self.size-14, 8), border_radius=2)
             
-            # Ruedas
-            wheel_y = self.size - 6
-            pygame.draw.circle(surface, (30, 30, 30), (8, wheel_y), 4)
-            pygame.draw.circle(surface, (100, 100, 100), (8, wheel_y), 2)
-            pygame.draw.circle(surface, (30, 30, 30), (self.size-8, wheel_y), 4)
-            pygame.draw.circle(surface, (100, 100, 100), (self.size-8, wheel_y), 2)
+            # Ventanas laterales con efecto de profundidad
+            # Ventana izquierda
+            pygame.draw.rect(surface, (80, 130, 180), (7, 11, 3, 6))
+            # Ventana derecha
+            pygame.draw.rect(surface, (80, 130, 180), (self.size-10, 11, 3, 6))
             
-            # Faros delanteros elegantes
-            pygame.draw.circle(surface, (255, 255, 200), (7, 9), 2)
-            pygame.draw.circle(surface, (255, 255, 200), (self.size-7, 9), 2)
-            pygame.draw.circle(surface, (255, 255, 255), (7, 8), 1)
-            pygame.draw.circle(surface, (255, 255, 255), (self.size-7, 8), 1)
+            # Brillo en el parabrisas delantero
+            pygame.draw.rect(surface, (180, 220, 255), (8, 10, self.size-16, 2))
             
-            # Parachoques cromado
-            pygame.draw.rect(surface, (150, 150, 150), (5, 7, self.size-10, 2), border_radius=1)
+            # Ruedas (vista superior - círculos a los lados)
+            # Ruedas delanteras
+            pygame.draw.circle(surface, (30, 30, 30), (5, 8), 3)
+            pygame.draw.circle(surface, (100, 100, 100), (5, 8), 2)
+            pygame.draw.circle(surface, (30, 30, 30), (self.size-5, 8), 3)
+            pygame.draw.circle(surface, (100, 100, 100), (self.size-5, 8), 2)
+            
+            # Ruedas traseras
+            pygame.draw.circle(surface, (30, 30, 30), (5, self.size-8), 3)
+            pygame.draw.circle(surface, (100, 100, 100), (5, self.size-8), 2)
+            pygame.draw.circle(surface, (30, 30, 30), (self.size-5, self.size-8), 3)
+            pygame.draw.circle(surface, (100, 100, 100), (self.size-5, self.size-8), 2)
+            
+            # Faros delanteros
+            pygame.draw.circle(surface, (255, 255, 200), (7, 5), 2)
+            pygame.draw.circle(surface, (255, 255, 200), (self.size-7, 5), 2)
+            pygame.draw.circle(surface, (255, 255, 255), (7, 4), 1)
+            pygame.draw.circle(surface, (255, 255, 255), (self.size-7, 4), 1)
+            
+            # Parachoques delantero
+            pygame.draw.rect(surface, (150, 150, 150), (5, 3, self.size-10, 2), border_radius=1)
+            
+            # Luces traseras
+            pygame.draw.circle(surface, (200, 0, 0), (7, self.size-6), 1)
+            pygame.draw.circle(surface, (200, 0, 0), (self.size-7, self.size-6), 1)
+            
+            # Parachoques trasero
+            pygame.draw.rect(surface, (150, 150, 150), (5, self.size-4, self.size-10, 2), border_radius=1)
+            
+            # Detalles adicionales (espejos retrovisores)
+            pygame.draw.rect(surface, (80, 80, 80), (3, 12, 2, 2))
+            pygame.draw.rect(surface, (80, 80, 80), (self.size-5, 12, 2, 2))
         
         return surface
     
@@ -284,6 +304,7 @@ class Vehicle:
                 if self.distance_to_point(self.base_gx, self.base_gy) <= self.base_radius_grid:
                     self.at_base = True
                     self.deliver_cargo()
+                    self.forced_return = False  # 🔧 Resetear forced_return
                     return True # Evento lógico
                 else:
                     self.at_base = False
@@ -297,12 +318,17 @@ class Vehicle:
                     self.returning_to_base = False
                     self.trips_left = self.max_trips
                     self.path.clear()
+                    # 🔧 Tomar decisión inmediata después de entregar
+                    if self.strategy and len(world.resources) > 0:
+                        action = self.strategy.decide(self, world)
+                        self.execute_action(action, world)
                     return True # Evento lógico
                 else:
                     self.at_base = False
                     if not self.path:
                         self.set_path_to_base(world)
             
+            # 🔧 Siempre intentar tomar una decisión si no tenemos path
             if not self.path and not self.forced_return and not self.returning_to_base:
                 if self.strategy:
                     action = self.strategy.decide(self, world)
@@ -320,25 +346,11 @@ class Vehicle:
                     self.target_pixel_x = next_gx * constants.TILE + constants.TILE // 2
                     self.target_pixel_y = next_gy * constants.TILE + constants.TILE // 2
                 else:
+                    # 🔧 Si la celda no es segura, buscar alternativa
                     self.path.clear()
+                    # Forzar nueva decisión en el próximo tick
             
             return True # Fue un tick LÓGICO (tomamos decisiones o esperamos)
-
-        # 2. ¿Nos estamos moviendo? (Interpolación visual)
-        if not self.is_at_visual_target():
-            
-            # Moverse hacia self.target_pixel_x
-            if self.x < self.target_pixel_x:
-                self.x = min(self.x + self.speed_pixels_per_update, self.target_pixel_x)
-            elif self.x > self.target_pixel_x:
-                self.x = max(self.x - self.speed_pixels_per_update, self.target_pixel_x)
-            
-            if self.y < self.target_pixel_y:
-                self.y = min(self.y + self.speed_pixels_per_update, self.target_pixel_y)
-            elif self.y > self.target_pixel_y:
-                self.y = max(self.y - self.speed_pixels_per_update, self.target_pixel_y)
-
-        return False # Fue solo un tick de ANIMACIÓN
 
         # 2. ¿Nos estamos moviendo? (Interpolación visual)
         if not self.is_at_visual_target():
@@ -412,7 +424,6 @@ class Vehicle:
             self.path = path_list[1:] # Omitir el primer nodo (posición actual)
         else:
             self.path = [] # No se encontró ruta o ya estamos en la base
-            # print(f"{self.id} no encontró ruta a la base.") # Descomentar para debug
     
     def force_return_to_base(self):
         self.forced_return = True
@@ -437,7 +448,6 @@ class Vehicle:
         
         elif action_type == "collect" and target:
             # Target es un objeto recurso. Convertimos sus píxeles a celda.
-            # (Usamos int() por si acaso, aunque ya deberían serlo)
             target_gx = int(target.x) // constants.TILE
             target_gy = int(target.y) // constants.TILE
             target_cell = (target_gx, target_gy)
@@ -455,29 +465,8 @@ class Vehicle:
                 self.path = path_list[1:] # Omitir el primer nodo
             else:
                 self.path = [] # No se encontró ruta
-                # print(f"{self.id} no encontró ruta a {target_cell}") # Debug
         else:
             self.path = [] # Objetivo inválido o ya estamos en él
-
-        action_type = action["type"]
-        target = action.get("target") # target puede ser un objeto o (gx, gy)
-
-        if action_type == "move" and target:
-            # Asumimos que el target es (gx, gy)
-            target_gx, target_gy = target
-            # path = find_path( (self.gx, self.gy), (target_gx, target_gy), world )
-            # if path: self.path = path[1:]
-        
-        elif action_type == "return_to_base":
-            self.returning_to_base = True
-            self.set_path_to_base(world) # Esta función ya sabe el objetivo
-
-        elif action_type == "collect" and target:
-            # Target es un objeto recurso
-            target_gx = int(target.x) // constants.TILE
-            target_gy = int(target.y) // constants.TILE
-            # path = find_path( (self.gx, self.gy), (target_gx, target_gy), world )
-            # if path: self.path = path[1:]
 
     def try_collect_at_current_cell(self, world):
         """Intenta recoger recursos EN la celda actual."""
@@ -543,7 +532,6 @@ class Vehicle:
             
             # Usamos la función de chequeo de la propia mina
             if mine.check_collision(px_center, py_center):
-                print(f"¡{self.id} pisó una mina en ({gx}, {gy})!")
                 return True # Hay colisión
         return False # No hay colisión
     

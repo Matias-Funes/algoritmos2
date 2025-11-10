@@ -163,7 +163,7 @@ def main():
 
     current_state = GameState.PREPARATION
     game_time = 0
-    max_game_time = 300 # 120 segundos
+    # max_game_time = 300 # 120 segundos
     file_menu_cache = [] # Lista genérica para guardar archivos (partidas O replays)
     file_menu_buttons = [] # Lista genérica para los rects de los botones
     file_menu_scroll_offset = 0
@@ -652,33 +652,33 @@ def main():
                         v2.die()
         
         # 6. LÓGICA DE FIN DE JUEGO (TIEMPO)
-        if game_time >= max_game_time:
-            if not stats_saved_this_game:
-                print("Guardando estadísticas de la partida (tiempo)...")
-                p1_score = sum(v.score for v in player1_vehicles)
-                p2_score = sum(v.score for v in player2_vehicles)
-                winner = "Empate"
-                if p1_score > p2_score:
-                    winner = "Jugador 1"
-                elif p2_score > p1_score:
-                    winner = "Jugador 2"
+        # if game_time >= max_game_time:
+            # if not stats_saved_this_game:
+                # print("Guardando estadísticas de la partida (tiempo)...")
+                # p1_score = sum(v.score for v in player1_vehicles)
+                # p2_score = sum(v.score for v in player2_vehicles)
+                # winner = "Empate"
+                # if p1_score > p2_score:
+                    # winner = "Jugador 1"
+                # elif p2_score > p1_score:
+                    # winner = "Jugador 2"
                 
-                db.save_match_result(winner, p1_score, p2_score)
-                stats_saved_this_game = True
+                # db.save_match_result(winner, p1_score, p2_score)
+                # stats_saved_this_game = True
             
-            if replay_buffer:
-                print("Guardando Replay (fin de tiempo)...")
-                replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
-                try:
-                    with open(replay_name, 'wb') as f:
-                        pickle.dump(replay_buffer, f)
-                    print(f"Replay guardado exitosamente en {replay_name}")
-                except Exception as e:
-                    print(f"Error al guardar el replay: {e}")
-                replay_buffer.clear()
+            # if replay_buffer:
+                # print("Guardando Replay (fin de tiempo)...")
+                # replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
+                # try:
+                    # with open(replay_name, 'wb') as f:
+                        # pickle.dump(replay_buffer, f)
+                    # print(f"Replay guardado exitosamente en {replay_name}")
+                # except Exception as e:
+                    # print(f"Error al guardar el replay: {e}")
+                # replay_buffer.clear()
             
-            current_state = GameState.GAME_OVER
-            return True # Fin del juego es lógico
+            # current_state = GameState.GAME_OVER
+            # return True # Fin del juego es lógico
 
         # 7. GRABAR FOTOGRAMA PARA REPLAY
         if a_logical_update_happened:
@@ -907,7 +907,7 @@ def main():
         update_particles()
         
         # HUD moderno
-        world.draw_premium_hud(screen, player1_vehicles, player2_vehicles, game_time, max_game_time)
+        world.draw_premium_hud(screen, player1_vehicles, player2_vehicles, game_time)
         
         # Mensaje cuando se terminan los recursos
         if hasattr(world, 'ending_phase') and world.ending_phase:

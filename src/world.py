@@ -347,7 +347,7 @@ class World:
         for mine in self.mines:
             mine.draw(screen)
 
-    def draw_premium_hud(self, screen, player1_vehicles, player2_vehicles, game_time, max_game_time):
+    def draw_premium_hud(self, screen, player1_vehicles, player2_vehicles, game_time):
         """HUD moderno y mejorado"""
         import pygame
         
@@ -478,22 +478,33 @@ class World:
             screen.blit(text, (x_offset, y))
             x_offset += 45
         
-        # Barra de tiempo central
-        time_panel_width = 220
-        time_panel_x = (constants.WIDTH - time_panel_width) // 2
-        draw_panel(screen, time_panel_x, 10, time_panel_width, 45, (40, 40, 50))
+        # Panel de recursos restantes (en lugar de tiempo)
+        resource_panel_width = 240
+        resource_panel_x = (constants.WIDTH - resource_panel_width) // 2
+        draw_panel(screen, resource_panel_x, 10, resource_panel_width, 55, (40, 40, 50))
         
-        # Tiempo restante
-        time_left = max(0, (max_game_time - game_time) // 60)
-        time_color = (255, 100, 100) if time_left < 30 else (255, 255, 150)
-        time_text = font_title.render(f"{time_left}s", True, time_color)
-        screen.blit(time_text, (time_panel_x + 20, 18))
+        # Calcular recursos totales y restantes
+        total_resources = 60  # 10 personas + 50 mercancías
+        resources_remaining = len(self.resources)
+        resources_collected = total_resources - resources_remaining
         
-        # Barra de progreso de tiempo
-        time_bar_width = time_panel_width - 40
-        time_progress = 1 - (game_time / max_game_time)
-        pygame.draw.rect(screen, (50, 50, 50), (time_panel_x + 20, 42, time_bar_width, 6), border_radius=3)
-        pygame.draw.rect(screen, time_color, (time_panel_x + 20, 42, int(time_bar_width * time_progress), 6), border_radius=3)
+        # Texto de recursos
+        resource_color = (150, 255, 150) if resources_remaining > 30 else (255, 200, 100) if resources_remaining > 10 else (255, 100, 100)
+        resource_text = font_title.render(f"Recursos: {resources_remaining}/60", True, resource_color)
+        screen.blit(resource_text, (resource_panel_x + 20, 18))
+        
+        # Barra de progreso de recolección
+        progress_bar_width = resource_panel_width - 40
+        collection_progress = resources_collected / total_resources
+        pygame.draw.rect(screen, (50, 50, 50), (resource_panel_x + 20, 45, progress_bar_width, 8), border_radius=4)
+        pygame.draw.rect(screen, resource_color, (resource_panel_x + 20, 45, int(progress_bar_width * collection_progress), 8), border_radius=4)
+        
+        # Mini contador de tiempo transcurrido
+        time_elapsed_seconds = game_time // 60
+        time_minutes = time_elapsed_seconds // 60
+        time_seconds = time_elapsed_seconds % 60
+        time_elapsed_text = font_small.render(f"Tiempo: {time_minutes:02d}:{time_seconds:02d}", True, (200, 200, 200))
+        screen.blit(time_elapsed_text, (resource_panel_x + resource_panel_width//2 - 35, 32))
         
         # Recursos restantes (mini panel abajo)
         resources_remaining = len(self.resources)

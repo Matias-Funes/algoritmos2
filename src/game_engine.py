@@ -26,7 +26,6 @@ STRATEGY_MAP = {
     "FastMotoStrategy": FastMotoStrategy,
     "SupportCamionStrategy": SupportCamionStrategy,
     "BalancedAutoStrategy": BalancedAutoStrategy
-    # (Añade BaseStrategy si alguna vez la usas directamente)
 }
 # --- FIN DEL MAPA ---
 
@@ -58,7 +57,7 @@ def draw_panel(surface, x, y, width, height, color=(30, 30, 40)):
     pygame.draw.rect(shadow_surf, (0, 0, 0, 80), (3, 3, width, height), border_radius=10)
     surface.blit(shadow_surf, (x - 3, y - 3))
     
-    # Panel principal
+    # Panel principal   
     panel_surf = pygame.Surface((width, height), pygame.SRCALPHA)
     pygame.draw.rect(panel_surf, color + (220,), (0, 0, width, height), border_radius=10)
     pygame.draw.rect(panel_surf, (255, 255, 255, 30), (0, 0, width, height), 2, border_radius=10)
@@ -166,7 +165,6 @@ def main():
 
     current_state = GameState.PREPARATION
     game_time = 0
-    # max_game_time = 300 # 120 segundos
     file_menu_cache = [] # Lista genérica para guardar archivos (partidas O replays)
     file_menu_buttons = [] # Lista genérica para los rects de los botones
     file_menu_scroll_offset = 0
@@ -261,9 +259,7 @@ def main():
         screen.blit(text, (base2_x - 32, base2_y - 72))
         text = FONT_NORMAL.render("BASE P2", True, (100, 100, 255))
         screen.blit(text, (base2_x - 33, base2_y - 73))
-    
 
-    # --- NUEVA FUNCIÓN HELPER ---
     def draw_button_text(surface, text, rect, font=FONT_NORMAL):
         """Helper para centrar texto en un botón"""
         text_surf = font.render(text, True, (255, 255, 255))
@@ -282,7 +278,6 @@ def main():
         pygame.draw.rect(surface, color_init, btn_init, border_radius=5)
         pygame.draw.rect(surface, color_play_btn, btn_play, border_radius=5)
         pygame.draw.rect(surface, color_pause_btn, btn_pause, border_radius=5)
-        pygame.draw.rect(screen, color_step_back, btn_step_back)
         pygame.draw.rect(surface, color_default, btn_step_back, border_radius=5) # color_default está bien
         pygame.draw.rect(surface, color_step_fwd, btn_step_fwd, border_radius=5)
         pygame.draw.rect(surface, color_save_btn, btn_save, border_radius=5)
@@ -440,21 +435,14 @@ def main():
                 for v in player2_vehicles
             ]
         }
-
-
-    def load_game_from_data(data):
-        """
-        Reconstruye el estado completo del juego a partir de un diccionario de datos.
-        """
-        nonlocal game_time, current_state # ¡Importante!
         
-        # 1. Restaurar el mundo
-        world.load_state(data['world'])
+    def _rebuild_fleet(vehicle_data_list):
+        """
+        Función genérica para reconstruir una flota (lista de vehículos)
+        a partir de sus datos guardados.
+        """
+        rebuilt_fleet = [] # 1. Crea una lista vacía
         
-        # 2. Limpiar flotas actuales
-        player1_vehicles.clear()
-        player2_vehicles.clear()
-
         # Diccionario para recrear vehículos por su tipo
         vehicle_classes = {
             "jeep": Jeep,
@@ -462,43 +450,30 @@ def main():
             "camion": Camion,
             "auto": Auto
         }
-        
-        # 3. Reconstruir Flota del Jugador 1
-        for v_data in data.get('player1_vehicles', []):
+        for v_data in vehicle_data_list: # 2. Itera sobre los datos
             v_type = v_data.get('vehicle_type')
             if v_type in vehicle_classes:
                 cls = vehicle_classes[v_type]
                 
-                # --- INICIO DE CORRECCIÓN ---
-                # Leemos la celda (gx, gy) del archivo guardado
+                # --- Lógica de reconstrucción (la misma que ya tenías) ---
                 g_x = v_data['gx']
                 g_y = v_data['gy']
-                # Convertimos la celda (gx, gy) de nuevo a los píxeles (x, y)
-                # que el __init__ de Vehicle espera.
                 p_x = g_x * constants.TILE
                 p_y = g_y * constants.TILE
                 
-                # Pasamos los píxeles (p_x, p_y) al constructor
                 new_v = cls(v_data['id'], p_x, p_y, 
                             v_data['base_position_pixels'], v_data['color'])
-                # --- FIN DE CORRECCIÓN ---
 
-                # Restaurar todos los atributos guardados
                 new_v.trips_left = v_data.get('trips_left', 1)
                 new_v.alive = v_data.get('alive', True)
                 new_v.score = v_data.get('score', 0)
                 new_v.returning_to_base = v_data.get('returning_to_base', False)
                 new_v.at_base = v_data.get('at_base', False)
                 new_v.forced_return = v_data.get('forced_return', False)
-                
-                # --- CORRECCIÓN DE VELOCIDAD ---
-                # Usamos la nueva variable 'speed_pixels_per_update'
                 new_v.speed_pixels_per_update = v_data.get('speed_pixels_per_update', 1.5)
 
-                # Reconstruir la carga (importante!)
                 new_v.cargo = []
                 for item_type in v_data.get('cargo', []):
-                    # (Tu lógica aquí es funcional, solo creamos objetos temporales)
                     if item_type == 'person':
                         p_obj = Person(0,0)
                         p_obj.value = constants.POINTS_PERSON
@@ -508,67 +483,39 @@ def main():
                         m_obj.value = constants.MERCH_POINTS.get(item_type, 0)
                         new_v.cargo.append(m_obj)
                 
-                # Restaurar el "cerebro" (la estrategia)
-                strategy_name = v_data.get('strategy_name')
-                if strategy_name in STRATEGY_MAP:
-                    new_v.strategy = STRATEGY_MAP[strategy_name]() # Crea una nueva instancia
-                else:
-                    new_v.strategy = None
-                    
-                player1_vehicles.append(new_v)
-
-        # 4. Reconstruir Flota del Jugador 2
-        for v_data in data.get('player2_vehicles', []):
-            v_type = v_data.get('vehicle_type')
-            if v_type in vehicle_classes:
-                cls = vehicle_classes[v_type]
-                
-                # --- INICIO DE CORRECCIÓN ---
-                g_x = v_data['gx']
-                g_y = v_data['gy']
-                p_x = g_x * constants.TILE
-                p_y = g_y * constants.TILE
-                
-                new_v = cls(v_data['id'], p_x, p_y, 
-                            v_data['base_position_pixels'], v_data['color'])
-                # --- FIN DE CORRECCIÓN ---
-                
-                # (Copiar y pegar la misma lógica de restauración de atributos de arriba)
-                new_v.trips_left = v_data.get('trips_left', 1)
-                new_v.alive = v_data.get('alive', True)
-                new_v.score = v_data.get('score', 0)
-                new_v.returning_to_base = v_data.get('returning_to_base', False)
-                new_v.at_base = v_data.get('at_base', False)
-                new_v.forced_return = v_data.get('forced_return', False)
-                
-                # --- CORRECCIÓN DE VELOCIDAD ---
-                new_v.speed_pixels_per_update = v_data.get('speed_pixels_per_update', 1.5)
-                
-                new_v.cargo = []
-                for item_type in v_data.get('cargo', []):
-                    if item_type == 'person':
-                        p_obj = Person(0,0)
-                        p_obj.value = constants.POINTS_PERSON
-                        new_v.cargo.append(p_obj)
-                    elif item_type in constants.MERCH_POINTS:
-                        m_obj = Merchandise(0,0, item_type)
-                        m_obj.value = constants.MERCH_POINTS.get(item_type, 0)
-                        new_v.cargo.append(m_obj)
-                
+                # Restaurar el "cerebro" (usa STRATEGY_MAP, que es global)
                 strategy_name = v_data.get('strategy_name')
                 if strategy_name in STRATEGY_MAP:
                     new_v.strategy = STRATEGY_MAP[strategy_name]()
                 else:
                     new_v.strategy = None
-                        
-                player2_vehicles.append(new_v)
+                
+                rebuilt_fleet.append(new_v) # 3. Añade el vehículo a la NUEVA lista
+        
+        return rebuilt_fleet # 4. Devuelve la flota completa    
 
-        # 5. Actualizar la lista de vehículos del mundo
+    def load_game_from_data(data):
+        """
+        Reconstruye el estado completo del juego a partir de un diccionario de datos.
+        """
+        nonlocal game_time, current_state 
+        
+        # 1. Restaurar el mundo
+        world.load_state(data['world'])
+        
+        # 2. Reconstruir flotas usando la función genérica
+        player1_vehicles.clear()
+        player2_vehicles.clear()
+        
+        player1_vehicles.extend(_rebuild_fleet(data.get('player1_vehicles', [])))
+        player2_vehicles.extend(_rebuild_fleet(data.get('player2_vehicles', [])))
+
+        # 3. Actualizar la lista de vehículos del mundo
         world.vehicles = player1_vehicles + player2_vehicles
         world.player1_vehicles = player1_vehicles
         world.player2_vehicles = player2_vehicles
         
-        # 6. Restaurar el tiempo y pausar el juego
+        # 4. Restaurar el tiempo
         game_time = data.get('game_time', 0)
     
     
@@ -667,41 +614,12 @@ def main():
                 if v1.gx == v2.gx and v1.gy == v2.gy:
                     v2_at_base = (v2.gx == v2.base_gx and v2.gy == v2.base_gy)
                     if not v1_at_base and not v2_at_base:
-                        a_logical_update_happened = True # ¡Colisión!
+                        a_logical_update_happened = True # Colisión
                         create_explosion(v1.x, v1.y, (255, 128, 0)) 
                         v1.die()
                         v2.die()
-        
-        # 6. LÓGICA DE FIN DE JUEGO (TIEMPO)
-        # if game_time >= max_game_time:
-            # if not stats_saved_this_game:
-                # print("Guardando estadísticas de la partida (tiempo)...")
-                # p1_score = sum(v.score for v in player1_vehicles)
-                # p2_score = sum(v.score for v in player2_vehicles)
-                # winner = "Empate"
-                # if p1_score > p2_score:
-                    # winner = "Jugador 1"
-                # elif p2_score > p1_score:
-                    # winner = "Jugador 2"
-                
-                # db.save_match_result(winner, p1_score, p2_score)
-                # stats_saved_this_game = True
-            
-            # if replay_buffer:
-                # print("Guardando Replay (fin de tiempo)...")
-                # replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
-                # try:
-                    # with open(replay_name, 'wb') as f:
-                        # pickle.dump(replay_buffer, f)
-                    # print(f"Replay guardado exitosamente en {replay_name}")
-                # except Exception as e:
-                    # print(f"Error al guardar el replay: {e}")
-                # replay_buffer.clear()
-            
-            # current_state = GameState.GAME_OVER
-            # return True # Fin del juego es lógico
 
-        # 7. GRABAR FOTOGRAMA PARA REPLAY
+        # 6. GRABAR FOTOGRAMA PARA REPLAY
         if a_logical_update_happened:
             try:
                 replay_buffer.append(get_full_game_state())
@@ -714,7 +632,7 @@ def main():
         except Exception as e:
             print(f"Error al guardar frame del historial: {e}")
 
-        # 8. Devolver si fue un tick lógico
+        # 7. Devolver si fue un tick lógico
         return a_logical_update_happened
     
     while True:
@@ -759,7 +677,6 @@ def main():
                             if rect.collidepoint(pos):
                                 if filename == "CANCEL":
                                     current_state = previous_state # Volver a PREPARATION o PAUSED
-                                    is_in_replay_mode = False
                                 # Si NO es "cancelar", es un archivo
                                 else:
                                     try:
@@ -827,7 +744,7 @@ def main():
                         # --- Paso atrás ---
                         elif btn_step_back.collidepoint(pos) and current_state == GameState.PAUSED:
                             if current_frame_index > 0:
-                                # 🔙 Retroceder 10 frames por clic
+                                # Retroceder 10 frames por clic
                                 current_frame_index = max(0, current_frame_index - 10)
                                 print(f"Retrocediendo al frame {current_frame_index}")
 
@@ -835,7 +752,7 @@ def main():
 
                                 # Detectamos el tipo de frame
                                 if "p1" in frame_data and "p2" in frame_data:
-                                    # Frame liviano → actualizamos rápido solo posiciones y estado
+                                    # Frame liviano, actualizamos rápido solo posiciones y estado
                                     for v, data in zip(player1_vehicles, frame_data["p1"]):
                                         v.x = data["x"]
                                         v.y = data["y"]
@@ -849,16 +766,13 @@ def main():
                                         v.score = data["score"]
 
                                 elif "player1_vehicles" in frame_data:
-                                    # Frame completo → carga total
+                                    # Frame completo carga total
                                     load_game_from_data(frame_data)
                                     current_frame_index = max(0, current_frame_index - 10)
-                                    current_game_state = frame_history[current_frame_index]  # ⬅️ el juego se alinea con ese frame
+                                    current_game_state = frame_history[current_frame_index]  # el juego se alinea con ese frame
 
                             else:
-                                print("⏮️ Llegaste al inicio del juego.")
-
-
-
+                                print("Llegaste al inicio del juego.")
 
                         elif btn_save.collidepoint(pos) and save_enabled:
                             print("Guardando partida...")
@@ -893,7 +807,6 @@ def main():
                             try:
                                 stats_data = db.get_statistics() # Carga los datos
                                 stats_scroll_offset = 0
-                                # (Ya no creamos el botón "BACK" aquí)
                                 previous_state = current_state
                                 current_state = GameState.SHOW_STATS
                             except Exception as e:
@@ -939,7 +852,7 @@ def main():
                 frame_history.append(get_lightweight_state())
                 current_frame_index = len(frame_history) - 1
                 
-                # Evitar consumir toda la RAM (opcional)
+                # Evitar consumir toda la RAM
                 if len(frame_history) > 10000:
                     frame_history.pop(0)
                     current_frame_index -= 1
@@ -949,7 +862,6 @@ def main():
 
                     
         elif current_state == GameState.REPLAYING:
-            # 🎞️ --- Modo Reproductor de Replay Mejorado ---
             if 'replay_playing' not in locals():
                 replay_playing = True     # Reproduce automáticamente al entrar
                 replay_speed = 1          # Velocidad normal

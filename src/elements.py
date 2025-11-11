@@ -56,6 +56,15 @@ class Person:
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
 
+    def get_state(self):
+        """Devuelve un diccionario simple para guardar."""
+        return {
+            "type": self.type,
+            "x": self.x,
+            "y": self.y,
+            "value": self.value
+        }
+
 
 class Merchandise:
     def __init__(self, x, y, kind):
@@ -114,6 +123,15 @@ class Merchandise:
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
 
+    def get_state(self):
+        """Devuelve un diccionario simple para guardar."""
+        return {
+            "type": self.type,
+            "kind": self.kind,
+            "x": self.x,
+            "y": self.y,
+            "value": self.value
+        }
 
 class Mine:
     def __init__(self, x, y, mine_type):
@@ -153,12 +171,17 @@ class Mine:
                 pygame.draw.circle(self.image, (255, 255, 0), (self.size//2, self.size//2), 2)
 
     def update(self):
-        """Actualiza el estado de la mina (solo G1)"""
+        """
+        Actualiza el estado de la mina (solo G1).
+        Devuelve True si cambió de estado, False si no.
+        """
         if self.type == "G1":
             self.toggle_timer += 1
             if self.toggle_timer >= constants.G1_TOGGLE_TIME:
                 self.active = not self.active
                 self.toggle_timer = 0
+                return True # Cambió de estado
+        return False # No cambió
 
     def draw(self, screen):
         """Dibuja la mina y su área de efecto"""
@@ -207,3 +230,14 @@ class Mine:
             return abs(px - cx) <= 2 and abs(py - cy) <= self.radius
         
         return False
+    
+    def get_state(self):
+        """Devuelve un diccionario simple para guardar."""
+        return {
+            "type": self.type,
+            "x": self.x,
+            "y": self.y,
+            "active": self.active,
+            "toggle_timer": self.toggle_timer,
+            "radius": self.radius
+        }

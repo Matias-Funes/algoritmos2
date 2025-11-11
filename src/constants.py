@@ -12,6 +12,8 @@ MERCH_POINTS = {
     "weapons": 50  # Armamentos según PDF
 }
 
+BASE_RADIUS_PIXELS = 50 # Radio de la base en píxeles (basado en game_engine)
+
 # Distribución de mercancías (total debe ser 50 según PDF)
 MERCH_COUNTS = {
     "clothes": 15,    # Ropa
@@ -20,6 +22,11 @@ MERCH_COUNTS = {
     "weapons": 10     # Armamentos
 }# Tamaños
 WIDTH, HEIGHT = 900, 600
+# Panel de Control Fijo (UI)
+UI_PANEL_HEIGHT = 80  # Altura de la barra de botones (puedes ajustarla)
+UI_PANEL_Y = HEIGHT - UI_PANEL_HEIGHT # Posición Y donde empieza el panel
+# Mundo del Juego (Área de simulación)
+GAME_WORLD_HEIGHT = HEIGHT - UI_PANEL_HEIGHT # El mapa ahora es más bajo
 PLAYER = 20
 GRASS = 30
 TREE = 25
@@ -29,7 +36,7 @@ MERCH_SIZE = 20
 # Tamaño de celda (tile) usado por la grid
 TILE = GRASS
 GRID_WIDTH = WIDTH // TILE
-GRID_HEIGHT = HEIGHT // TILE
+GRID_HEIGHT = GAME_WORLD_HEIGHT // TILE
 
 # Colores
 WHITE = (255, 255, 255)
@@ -38,13 +45,7 @@ BLUE = (0, 0, 255)
 BROWN = (139, 69, 19)
 RED = (255, 0, 0)
 
-# Cantidades
-NUM_TREES = 10
-NUM_PEOPLE = 10
-NUM_MERCH = 50
-
 # Puntos
-POINTS_PERSON = 50
 MERCH_POINTS = {
     "clothes": 5,
     "food": 10,

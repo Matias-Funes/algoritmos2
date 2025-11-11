@@ -14,7 +14,13 @@ class JeepStrategy(BaseStrategy):
 
         # PRIORIDAD 2: Regresar a base si es necesario
         if self.should_return_to_base(vehicle):
-            return {"type": "return_to_base", "target": vehicle.base_position}
+            return {"type": "return_to_base"}
+
+        # 🔧 NUEVO: Si estamos en la base SIN carga y CON viajes, salir inmediatamente
+        if vehicle.at_base and len(vehicle.cargo) == 0 and vehicle.trips_left > 0:
+            resource = self.find_nearest_resource(vehicle, world, vehicle.allowed_cargo)
+            if resource:
+                return {"type": "collect", "target": resource}
 
         # PRIORIDAD 3: Buscar recursos de alto valor
         resource = self.find_high_value_resource(
@@ -31,7 +37,7 @@ class JeepStrategy(BaseStrategy):
         if resource:
             return {"type": "collect", "target": resource}
 
-        # PRIORIDAD 5: Explorar
+        # PRIORIDAD 5: Explorar (SIEMPRE devuelve una acción)
         return {"type": "move", "target": self.random_exploration(world)}
 
 
@@ -47,12 +53,18 @@ class MotoStrategy(BaseStrategy):
 
         # PRIORIDAD 2: Si tiene persona, regresar inmediatamente
         if len(vehicle.cargo) > 0:
-            return {"type": "return_to_base", "target": vehicle.base_position}
+            return {"type": "return_to_base"}
+
+        # 🔧 NUEVO: Si estamos en la base sin carga, salir
+        if vehicle.at_base and len(vehicle.cargo) == 0:
+            resource = self.find_nearest_resource(vehicle, world, ["person"])
+            if resource:
+                return {"type": "collect", "target": resource}
 
         # PRIORIDAD 3: Buscar persona más cercana
         resource = self.find_nearest_resource(vehicle, world, ["person"])
         if resource:
-            # Verificar que no esté cerca de minas
+            # Comprobación de seguridad
             if not self.is_near_mine(vehicle, world, safety_margin=25):
                 return {"type": "collect", "target": resource}
             else:
@@ -60,23 +72,25 @@ class MotoStrategy(BaseStrategy):
                 safe_resources = []
                 for res in world.resources:
                     if res.type == "person":
-                        # Simular si es seguro ir allí
                         dist_to_mine = float("inf")
+                        res_gx, res_gy = world.pixel_to_cell(res.x, res.y)
+                        
                         for mine in world.mines:
                             if mine.active:
-                                mine_cx = mine.x + mine.size / 2
-                                mine_cy = mine.y + mine.size / 2
-                                d = math.hypot(res.x - mine_cx, res.y - mine_cy)
+                                mine_gx, mine_gy = world.pixel_to_cell(mine.x, mine.y)
+                                d = abs(res_gx - mine_gx) + abs(res_gy - mine_gy)
                                 dist_to_mine = min(dist_to_mine, d)
                         
-                        if dist_to_mine > 30:  # Zona segura
+                        if dist_to_mine > 2: 
                             safe_resources.append(res)
                 
                 if safe_resources:
-                    nearest = min(safe_resources, key=lambda r: math.hypot(vehicle.x - r.x, vehicle.y - r.y))
+                    nearest = min(safe_resources, key=lambda r: 
+                                  abs(vehicle.gx - world.pixel_to_cell(r.x, r.y)[0]) + 
+                                  abs(vehicle.gy - world.pixel_to_cell(r.x, r.y)[1]))
                     return {"type": "collect", "target": nearest}
 
-        # PRIORIDAD 4: Exploración rápida
+        # PRIORIDAD 4: Exploración rápida (SIEMPRE devuelve acción)
         return {"type": "move", "target": self.random_exploration(world)}
 
 
@@ -92,7 +106,13 @@ class CamionStrategy(BaseStrategy):
 
         # PRIORIDAD 2: Regresar si está lleno o sin viajes
         if len(vehicle.cargo) >= 5 or vehicle.trips_left == 0:
-            return {"type": "return_to_base", "target": vehicle.base_position}
+            return {"type": "return_to_base"}
+
+        # 🔧 NUEVO: Si estamos en la base sin carga, salir
+        if vehicle.at_base and len(vehicle.cargo) == 0 and vehicle.trips_left > 0:
+            resource = self.find_nearest_resource(vehicle, world, vehicle.allowed_cargo)
+            if resource:
+                return {"type": "collect", "target": resource}
 
         # PRIORIDAD 3: Buscar recursos valiosos
         resource = self.find_high_value_resource(
@@ -109,7 +129,7 @@ class CamionStrategy(BaseStrategy):
         if resource:
             return {"type": "collect", "target": resource}
 
-        # PRIORIDAD 5: Explorar zonas nuevas
+        # PRIORIDAD 5: Explorar zonas nuevas (SIEMPRE devuelve acción)
         return {"type": "move", "target": self.random_exploration(world)}
 
 
@@ -125,22 +145,36 @@ class AutoStrategy(BaseStrategy):
 
         # PRIORIDAD 2: Si tiene carga, regresar
         if len(vehicle.cargo) > 0:
-            return {"type": "return_to_base", "target": vehicle.base_position}
+            return {"type": "return_to_base"}
 
-        # PRIORIDAD 3: Buscar personas primero (alto valor)
+        # 🔧 NUEVO: Si estamos en la base sin carga, salir
+        if vehicle.at_base and len(vehicle.cargo) == 0:
+            resource = self.find_nearest_resource(vehicle, world, vehicle.allowed_cargo)
+            if resource:
+                return {"type": "collect", "target": resource}
+
+        # PRIORIDAD 3: Buscar personas primero
         person = self.find_nearest_resource(vehicle, world, ["person"])
-        if person and math.hypot(vehicle.x - person.x, vehicle.y - person.y) < 150:
-            return {"type": "collect", "target": person}
+        if person:
+            person_gx, person_gy = world.pixel_to_cell(person.x, person.y)
+            dist = abs(vehicle.gx - person_gx) + abs(vehicle.gy - person_gy)
+            
+            if dist < 5: 
+                return {"type": "collect", "target": person}
 
         # PRIORIDAD 4: Buscar medicamentos
         medicine = self.find_nearest_resource(vehicle, world, ["medicine"])
-        if medicine and math.hypot(vehicle.x - medicine.x, vehicle.y - medicine.y) < 120:
-            return {"type": "collect", "target": medicine}
+        if medicine:
+            med_gx, med_gy = world.pixel_to_cell(medicine.x, medicine.y)
+            dist = abs(vehicle.gx - med_gx) + abs(vehicle.gy - med_gy)
+            
+            if dist < 4: 
+                return {"type": "collect", "target": medicine}
 
         # PRIORIDAD 5: Buscar cualquier recurso permitido cercano
         resource = self.find_nearest_resource(vehicle, world, vehicle.allowed_cargo)
         if resource:
             return {"type": "collect", "target": resource}
 
-        # PRIORIDAD 6: Explorar
+        # PRIORIDAD 6: Explorar (SIEMPRE devuelve acción)
         return {"type": "move", "target": self.random_exploration(world)}

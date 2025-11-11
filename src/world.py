@@ -4,12 +4,19 @@ from .elements import Tree, Person, Merchandise, Mine
 import random 
 import os
 import math
+from . import pathfinding
+
 
 class World:
     def __init__(self, width, height):
         self.width = width
-        self.height = height
+        self.height = constants.GAME_WORLD_HEIGHT
 
+        # Definir las áreas de las bases para evitar que se generen objetos en ellas
+        self.base1_pos = (50, constants.GAME_WORLD_HEIGHT // 2)
+        self.base2_pos = (constants.WIDTH - 50, constants.GAME_WORLD_HEIGHT // 2)
+        self.base_radius = 50  # Radio de la base en píxeles
+        
         # grid: 0 libre, 1 árbol, 2 persona, 3 mercancía, 4 mina
         self.grid = [[0 for _ in range(constants.GRID_WIDTH)] for _ in range(constants.GRID_HEIGHT)]
 
@@ -30,28 +37,67 @@ class World:
                 gx = random.randint(0, constants.GRID_WIDTH - 1)
                 gy = random.randint(0, constants.GRID_HEIGHT - 1)
                 attempts += 1
-                if self.grid[gy][gx] == 0:
+                if self.grid[gy][gx] == 0 and not self.is_in_base_area(gx, gy):
                     self.grid[gy][gx] = 1
                     px, py = self.cell_to_pixel(gx, gy)
                     self.trees.append(Tree(px, py))
                     break
-
-        # Generar personas
+        # Inicializamos las listas como vacías
         self.people = []
+        self.merch = []
+        self.mines = []
+        self.resources = []
+        self.vehicles = []
+
+    # Funcion para verificar si una celda esta dentro de alguna base 
+    def is_in_base_area(self, gx, gy):
+        """Verifica si una celda de la grid está dentro de alguna base."""
+        # Calculamos el centro de la celda en píxeles
+        px, py = self.cell_to_pixel(gx, gy)
+        px_center = px + constants.TILE // 2
+        py_center = py + constants.TILE // 2
+        
+        # Comprobamos la distancia a los centros de las bases
+        dist_base1 = math.hypot(px_center - self.base1_pos[0], py_center - self.base1_pos[1])
+        dist_base2 = math.hypot(px_center - self.base2_pos[0], py_center - self.base2_pos[1])
+        
+        # Si está dentro del radio de CUALQUIER base, es verdadero
+        if dist_base1 <= self.base_radius or dist_base2 <= self.base_radius:
+            return True
+        return False
+    
+    def initialize_map_elements(self):
+        """
+        Limpia y (re)genera todas las minas, personas y mercancías.
+        """
+        print("Generando nuevos elementos en el mapa...")
+        
+        #Limpiar listas de objetos
+        self.people.clear()
+        self.merch.clear()
+        self.mines.clear()
+        self.resources.clear()
+        
+        #Resetear la grid (borrar todo excepto los árboles '1')
+        for y in range(constants.GRID_HEIGHT):
+            for x in range(constants.GRID_WIDTH):
+                if self.grid[y][x] != 1: # Si no es un árbol
+                    self.grid[y][x] = 0  # Limpiar la celda
+                    
+        #Generar personas 
         for _ in range(constants.NUM_PEOPLE):
             attempts = 0
             while attempts < 200:
                 gx = random.randint(0, constants.GRID_WIDTH - 1)
                 gy = random.randint(0, constants.GRID_HEIGHT - 1)
                 attempts += 1
-                if self.grid[gy][gx] == 0:
+                if self.grid[gy][gx] == 0 and not self.is_in_base_area(gx, gy):
                     self.grid[gy][gx] = 2
                     px, py = self.cell_to_pixel(gx, gy)
                     self.people.append(Person(px, py))
                     break
 
-        # Generar mercancías
-        self.merch = []
+        # Generar mercancias 
         for kind, cnt in constants.MERCH_COUNTS.items():
             for _ in range(cnt):
                 attempts = 0
@@ -59,23 +105,18 @@ class World:
                     gx = random.randint(0, constants.GRID_WIDTH - 1)
                     gy = random.randint(0, constants.GRID_HEIGHT - 1)
                     attempts += 1
-                    if self.grid[gy][gx] == 0:
+                    if self.grid[gy][gx] == 0 and not self.is_in_base_area(gx, gy):
                         self.grid[gy][gx] = 3
                         px, py = self.cell_to_pixel(gx, gy)
                         self.merch.append(Merchandise(px, py, kind))
                         break
 
-        # Inicializar minas
-        self.mines = []
+        # Generar minas 
         self.init_mines()
 
-        # Lista unificada de recursos para las estrategias
-        self.resources = []
+        # Actualizar recursos 
         self.update_resources_list()
-
-        # Lista de vehículos (se asigna desde game_engine)
-        self.vehicles = []
-    
+        
     def update_resources_list(self):
         """Actualiza la lista unificada de recursos"""
         self.resources = []
@@ -92,6 +133,76 @@ class World:
             p.value = constants.POINTS_PERSON
             self.resources.append(p)
 
+    #Guardar 
+    def get_state(self):
+        """Recopila el estado de todos los elementos del mundo."""
+        return {
+            "people": [p.get_state() for p in self.people],
+            "merchandise": [m.get_state() for m in self.merch],
+            "mines": [m.get_state() for m in self.mines]
+        }
+    
+    #Cargar
+    def load_state(self, world_data):
+        """Limpia el mundo y lo recrea a partir de los datos guardados."""
+        
+        # 1. Limpiar todas las listas de objetos
+        self.people.clear()
+        self.merch.clear()
+        self.mines.clear()
+        self.resources.clear()
+        
+        # 2. Recrear Personas
+        for person_data in world_data.get('people', []):
+            p = Person(person_data['x'], person_data['y'])
+            # (Podemos añadir más atributos si los guardamos en el futuro)
+            self.people.append(p)
+            
+        # 3. Recrear Mercancías
+        for merch_data in world_data.get('merchandise', []):
+            m = Merchandise(merch_data['x'], merch_data['y'], merch_data['kind'])
+            self.merch.append(m)
+
+        # 4. Recrear Minas
+        for mine_data in world_data.get('mines', []):
+            m = Mine(mine_data['x'], mine_data['y'], mine_data['type'])
+            # Restaurar el estado de la mina (temporizador, actividad)
+            m.active = mine_data.get('active', True)
+            m.toggle_timer = mine_data.get('toggle_timer', 0)
+            self.mines.append(m)
+            
+        # 5. Reconstruir la lista de recursos unificada
+        self.update_resources_list()
+        
+        # 6. Reconstruir la grid de navegación
+        self._rebuild_grid()
+
+    def _rebuild_grid(self):
+        """
+        Limpia y reconstruye la grid de navegación basada en los objetos cargados.
+        """
+        # 1. Resetear la grid (borrar todo excepto los árboles '1')
+        for y in range(constants.GRID_HEIGHT):
+            for x in range(constants.GRID_WIDTH):
+                if self.grid[y][x] != 1: # Si no es un árbol
+                    self.grid[y][x] = 0  # Limpiar la celda
+        
+        # 2. Repoblar la grid con los objetos cargados
+        for p in self.people:
+            gx, gy = self.pixel_to_cell(p.x, p.y)
+            if 0 <= gx < constants.GRID_WIDTH and 0 <= gy < constants.GRID_HEIGHT:
+                self.grid[gy][gx] = 2
+        
+        for m in self.merch:
+            gx, gy = self.pixel_to_cell(m.x, m.y)
+            if 0 <= gx < constants.GRID_WIDTH and 0 <= gy < constants.GRID_HEIGHT:
+                self.grid[gy][gx] = 3
+                
+        for m in self.mines:
+            gx, gy = self.pixel_to_cell(m.x, m.y)
+            if 0 <= gx < constants.GRID_WIDTH and 0 <= gy < constants.GRID_HEIGHT:
+                self.grid[gy][gx] = 4
+    
     def remove_resource(self, resource):
         """Remueve un recurso del mundo"""
         if resource in self.resources:
@@ -141,7 +252,7 @@ class World:
                     gx = random.randint(0, constants.GRID_WIDTH - 1)
                     gy = random.randint(0, constants.GRID_HEIGHT - 1)
                     
-                    if self.grid[gy][gx] != 0:
+                    if self.grid[gy][gx] != 0 or self.is_in_base_area(gx, gy):
                         attempts += 1
                         continue
                 
@@ -162,10 +273,16 @@ class World:
                     attempts += 1
                     
     def update_g1_mines(self):
-        """Actualiza minas dinámicas G1"""
+        """
+        Actualiza minas dinámicas G1.
+        Devuelve True si ALGUNA mina cambió de estado.
+        """
+        a_mine_changed = False
         for mine in self.mines:
             if mine.type == "G1":
-                mine.update()
+                if mine.update(): # mine.update() ahora devuelve True si cambió
+                    a_mine_changed = True
+        return a_mine_changed
 
     def relocate_g1_mines(self):
         """Reubica minas G1"""
@@ -179,7 +296,7 @@ class World:
                 while attempts < 200:
                     gx = random.randint(0, constants.GRID_WIDTH - 1)
                     gy = random.randint(0, constants.GRID_HEIGHT - 1)
-                    if self.grid[gy][gx] == 0:
+                    if self.grid[gy][gx] == 0 and not self.is_in_base_area(gx, gy):
                         mine.x, mine.y = self.cell_to_pixel(gx, gy)
                         self.grid[gy][gx] = 4
                         break
@@ -194,10 +311,15 @@ class World:
         return gx * constants.TILE, gy * constants.TILE
 
     def is_walkable(self, gx, gy):
-        """Verifica si una celda es caminable"""
+        """
+        Verifica si una celda es caminable para el ALGORITMO A*.
+        """
         if gx < 0 or gy < 0 or gx >= constants.GRID_WIDTH or gy >= constants.GRID_HEIGHT:
-            return False
-        return self.grid[gy][gx] in (0, 2, 3, 4)
+            return False # Fuera del mapa
+            
+        # Es caminable si es 0 (suelo), 2 (persona) o 3 (mercancía).
+        # NO es caminable si es 1 (árbol) o 4 (mina).
+        return self.grid[gy][gx] in (0, 2, 3)
 
     def get_neighbors(self, gx, gy):
         """Obtiene celdas adyacentes válidas"""
@@ -225,7 +347,7 @@ class World:
         for mine in self.mines:
             mine.draw(screen)
 
-    def draw_premium_hud(self, screen, player1_vehicles, player2_vehicles, game_time, max_game_time):
+    def draw_premium_hud(self, screen, player1_vehicles, player2_vehicles, game_time):
         """HUD moderno y mejorado"""
         import pygame
         
@@ -356,29 +478,40 @@ class World:
             screen.blit(text, (x_offset, y))
             x_offset += 45
         
-        # Barra de tiempo central
-        time_panel_width = 220
-        time_panel_x = (constants.WIDTH - time_panel_width) // 2
-        draw_panel(screen, time_panel_x, 10, time_panel_width, 45, (40, 40, 50))
+        # Panel de recursos restantes (en lugar de tiempo)
+        resource_panel_width = 240
+        resource_panel_x = (constants.WIDTH - resource_panel_width) // 2
+        draw_panel(screen, resource_panel_x, 10, resource_panel_width, 55, (40, 40, 50))
         
-        # Tiempo restante
-        time_left = max(0, (max_game_time - game_time) // 60)
-        time_color = (255, 100, 100) if time_left < 30 else (255, 255, 150)
-        time_text = font_title.render(f"{time_left}s", True, time_color)
-        screen.blit(time_text, (time_panel_x + 20, 18))
+        # Calcular recursos totales y restantes
+        total_resources = 60  # 10 personas + 50 mercancías
+        resources_remaining = len(self.resources)
+        resources_collected = total_resources - resources_remaining
         
-        # Barra de progreso de tiempo
-        time_bar_width = time_panel_width - 40
-        time_progress = 1 - (game_time / max_game_time)
-        pygame.draw.rect(screen, (50, 50, 50), (time_panel_x + 20, 42, time_bar_width, 6), border_radius=3)
-        pygame.draw.rect(screen, time_color, (time_panel_x + 20, 42, int(time_bar_width * time_progress), 6), border_radius=3)
+        # Texto de recursos
+        resource_color = (150, 255, 150) if resources_remaining > 30 else (255, 200, 100) if resources_remaining > 10 else (255, 100, 100)
+        resource_text = font_title.render(f"Recursos: {resources_remaining}/60", True, resource_color)
+        screen.blit(resource_text, (resource_panel_x + 20, 18))
+        
+        # Barra de progreso de recolección
+        progress_bar_width = resource_panel_width - 40
+        collection_progress = resources_collected / total_resources
+        pygame.draw.rect(screen, (50, 50, 50), (resource_panel_x + 20, 45, progress_bar_width, 8), border_radius=4)
+        pygame.draw.rect(screen, resource_color, (resource_panel_x + 20, 45, int(progress_bar_width * collection_progress), 8), border_radius=4)
+        
+        # Mini contador de tiempo transcurrido
+        time_elapsed_seconds = game_time // 60
+        time_minutes = time_elapsed_seconds // 60
+        time_seconds = time_elapsed_seconds % 60
+        time_elapsed_text = font_small.render(f"Tiempo: {time_minutes:02d}:{time_seconds:02d}", True, (200, 200, 200))
+        screen.blit(time_elapsed_text, (resource_panel_x + resource_panel_width//2 - 35, 32))
         
         # Recursos restantes (mini panel abajo)
         resources_remaining = len(self.resources)
         if resources_remaining > 0:
             mini_panel_width = 150
             mini_panel_x = (constants.WIDTH - mini_panel_width) // 2
-            draw_panel(screen, mini_panel_x, constants.HEIGHT - 50, mini_panel_width, 35, (40, 50, 40))
+            draw_panel(screen, mini_panel_x, constants.GAME_WORLD_HEIGHT - 50, mini_panel_width, 35, (40, 50, 40))
             
             res_text = font_normal.render(f"Recursos: {resources_remaining}", True, (150, 255, 150))
-            screen.blit(res_text, (mini_panel_x + 15, constants.HEIGHT - 38))
+            screen.blit(res_text, (mini_panel_x + 15, constants.GAME_WORLD_HEIGHT - 38))

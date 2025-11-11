@@ -33,3 +33,6 @@ dist/
 
 # ---- CONFIGURACIÓN PERSONAL ----
 .env
+
+# Ignorar base de datos local
+game_data.db

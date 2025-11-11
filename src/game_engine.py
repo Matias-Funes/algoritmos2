@@ -65,6 +65,9 @@ def draw_panel(surface, x, y, width, height, color=(30, 30, 40)):
     surface.blit(panel_surf, (x, y))
 
 def main():
+    frame_history = []
+    current_frame_index = -1
+
     clock = pygame.time.Clock()
     db = GameDatabase()
     # Usamos GAME_WORLD_HEIGHT para inicializar el mundo
@@ -279,7 +282,7 @@ def main():
         pygame.draw.rect(surface, color_init, btn_init, border_radius=5)
         pygame.draw.rect(surface, color_play_btn, btn_play, border_radius=5)
         pygame.draw.rect(surface, color_pause_btn, btn_pause, border_radius=5)
-        
+        pygame.draw.rect(screen, color_step_back, btn_step_back)
         pygame.draw.rect(surface, color_default, btn_step_back, border_radius=5) # color_default está bien
         pygame.draw.rect(surface, color_step_fwd, btn_step_fwd, border_radius=5)
         pygame.draw.rect(surface, color_save_btn, btn_save, border_radius=5)
@@ -410,7 +413,7 @@ def main():
         p2_vehicles_state = [v.get_state() for v in player2_vehicles]
         
         # 2. Guardar el estado del mundo (minas, recursos, etc.)
-        world_state = world.get_state() # Llama al get_state() de world
+        world_state = world.get_state()  # Llama al get_state() de world
         
         # 3. Empaquetar todo en un solo diccionario
         game_state_data = {
@@ -420,6 +423,24 @@ def main():
             "player2_vehicles": p2_vehicles_state
         }
         return game_state_data
+
+
+    def get_lightweight_state():
+        """
+        Guarda solo las posiciones y estados básicos de los vehículos.
+        Ideal para avanzar/retroceder rápido sin recargar todo el mundo.
+        """
+        return {
+            "p1": [
+                {"x": v.x, "y": v.y, "alive": v.alive, "score": v.score}
+                for v in player1_vehicles
+            ],
+            "p2": [
+                {"x": v.x, "y": v.y, "alive": v.alive, "score": v.score}
+                for v in player2_vehicles
+            ]
+        }
+
 
     def load_game_from_data(data):
         """
@@ -686,6 +707,12 @@ def main():
                 replay_buffer.append(get_full_game_state())
             except Exception as e:
                 print(f"Error al grabar fotograma de replay: {e}")
+        # Guardar el estado actual para poder retroceder
+        try:
+            frame_history.append(get_full_game_state())
+            current_frame_index = len(frame_history) - 1
+        except Exception as e:
+            print(f"Error al guardar frame del historial: {e}")
 
         # 8. Devolver si fue un tick lógico
         return a_logical_update_happened
@@ -713,7 +740,8 @@ def main():
         color_save_btn = color_default if save_enabled else color_disabled
         color_load_btn = color_default if load_enabled else color_disabled
         color_step_fwd = color_default if step_fwd_enabled else color_disabled
-        
+        color_step_back = color_default if step_fwd_enabled else color_disabled
+
         # Bucle y manejo de eventos al pausar 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -759,10 +787,17 @@ def main():
                     elif current_state != GameState.GAME_OVER:
                         if btn_init.collidepoint(pos) and current_state == GameState.PREPARATION:
                             world.initialize_map_elements()
+                            frame_history.clear()
+                            frame_history.append(get_full_game_state())
+                            current_frame_index = 0
                             stats_saved_this_game = False
                         
                         elif btn_play.collidepoint(pos) and play_enabled: # Usamos la variable de estado
                             if current_state == GameState.REPLAY_PAUSED:
+                                print(f"Reanudando desde el frame {current_frame_index}")
+                                # Cargar el estado actual del frame donde quedó
+                                frame_data = frame_history[current_frame_index]
+                                load_game_from_data(frame_data)
                                 current_state = GameState.REPLAYING # Reanuda el replay
                             else:
                                 if current_state == GameState.PREPARATION and not world.resources:
@@ -775,33 +810,56 @@ def main():
                                 current_state = GameState.PAUSED # Pausa el juego
                             elif current_state == GameState.REPLAYING:
                                 current_state = GameState.REPLAY_PAUSED # Pausa el replay
-                        
-                        elif btn_step_fwd.collidepoint(pos) and step_fwd_enabled:
-                            
-                            # Opción 1: Estamos en un JUEGO pausado
-                            if current_state == GameState.PAUSED:
-                                print("Avanzando al SIGUIENTE EVENTO LÓGICO...")
-                                # Ejecutamos la lógica en un bucle HASTA que
-                                # ocurra un evento lógico (o 1000 frames)
-                                for _ in range(1000): # (Límite de seguridad)
-                                    if run_game_logic_tick(): # Devuelve True si fue lógico
-                                        break # Encontramos un evento
-                                    if current_state != GameState.PAUSED: # El juego terminó
-                                        break 
-                            
-                            # Opción 2: Estamos en un REPLAY pausado
-                            elif current_state == GameState.REPLAY_PAUSED:
-                                print("Avanzando un frame de REPLAY...")
-                                # (Esta lógica ya está bien, porque el replay
-                                # ahora SÓLO contiene frames lógicos)
-                                current_replay_frame += 1 
-                                if current_replay_frame < len(replay_data):
-                                    current_frame_data = replay_data[current_replay_frame]
-                                    load_game_from_data(current_frame_data)
-                                else:
-                                    print("Replay finalizado.")
-                                    current_state = GameState.GAME_OVER
-                        
+  
+                       # --- Paso adelante ---
+                        elif btn_step_fwd.collidepoint(pos) and current_state == GameState.PAUSED:
+                            print("Avanzando varios frames lógicos...")
+                            step_size = 20  # cantidad de frames que avanza por clic
+                            for _ in range(step_size):
+                                if run_game_logic_tick():
+                                    try:
+                                        frame_history.append(get_full_game_state())
+                                        current_frame_index = len(frame_history) - 1
+                                    except Exception as e:
+                                        print(f"Error al guardar frame: {e}")
+                            print(f"Avanzó {step_size} frames.")
+
+                        # --- Paso atrás ---
+                        elif btn_step_back.collidepoint(pos) and current_state == GameState.PAUSED:
+                            if current_frame_index > 0:
+                                # 🔙 Retroceder 10 frames por clic
+                                current_frame_index = max(0, current_frame_index - 10)
+                                print(f"Retrocediendo al frame {current_frame_index}")
+
+                                frame_data = frame_history[current_frame_index]
+
+                                # Detectamos el tipo de frame
+                                if "p1" in frame_data and "p2" in frame_data:
+                                    # Frame liviano → actualizamos rápido solo posiciones y estado
+                                    for v, data in zip(player1_vehicles, frame_data["p1"]):
+                                        v.x = data["x"]
+                                        v.y = data["y"]
+                                        v.alive = data["alive"]
+                                        v.score = data["score"]
+
+                                    for v, data in zip(player2_vehicles, frame_data["p2"]):
+                                        v.x = data["x"]
+                                        v.y = data["y"]
+                                        v.alive = data["alive"]
+                                        v.score = data["score"]
+
+                                elif "player1_vehicles" in frame_data:
+                                    # Frame completo → carga total
+                                    load_game_from_data(frame_data)
+                                    current_frame_index = max(0, current_frame_index - 10)
+                                    current_game_state = frame_history[current_frame_index]  # ⬅️ el juego se alinea con ese frame
+
+                            else:
+                                print("⏮️ Llegaste al inicio del juego.")
+
+
+
+
                         elif btn_save.collidepoint(pos) and save_enabled:
                             print("Guardando partida...")
                             game_data = get_full_game_state()
@@ -873,27 +931,66 @@ def main():
 
         # Lógica del juego
         if current_state == GameState.PLAYING:
+            # Ejecutar la lógica normal
             run_game_logic_tick()
-                          
-        elif current_state == GameState.REPLAYING:
-            # Modo "Reproductor de Video"
-            if current_replay_frame < len(replay_data):
-                try:
-                    # 1. Cargar el fotograma (la "foto")
-                    current_frame_data = replay_data[current_replay_frame]
-                    # 2. Reconstruir el estado (usa la misma función que Cargar)
-                    load_game_from_data(current_frame_data)
-                    # 3. Avanzar al siguiente fotograma
-                    current_replay_frame += 1
-                    # 4. Forzar el estado a PAUSA (para que se vea 1 fotograma)
-                    current_state = GameState.REPLAYING # Se mantiene en replay
-                except Exception as e:
-                    print(f"Error al reproducir fotograma de replay: {e}")
-                    current_state = GameState.PAUSED # Salir a pausa si hay error
-            else:
-                print("Replay finalizado.")
-                current_state = GameState.GAME_OVER
+            
+            # Guardar un snapshot del estado del juego
+            try:
+                frame_history.append(get_lightweight_state())
+                current_frame_index = len(frame_history) - 1
                 
+                # Evitar consumir toda la RAM (opcional)
+                if len(frame_history) > 10000:
+                    frame_history.pop(0)
+                    current_frame_index -= 1
+
+            except Exception as e:
+                print(f"Error guardando frame: {e}")
+
+                    
+        elif current_state == GameState.REPLAYING:
+            # 🎞️ --- Modo Reproductor de Replay Mejorado ---
+            if 'replay_playing' not in locals():
+                replay_playing = True     # Reproduce automáticamente al entrar
+                replay_speed = 1          # Velocidad normal
+                last_update_time = pygame.time.get_ticks()
+
+            now = pygame.time.get_ticks()
+            if replay_playing and now - last_update_time > (100 // abs(replay_speed)):
+                last_update_time = now
+                current_replay_frame += replay_speed
+                current_replay_frame = max(0, min(current_replay_frame, len(replay_data) - 1))
+                try:
+                    frame_data = replay_data[current_replay_frame]
+                    load_game_from_data(frame_data)
+                except Exception as e:
+                    print(f"Error al reproducir frame de replay: {e}")
+                    replay_playing = False
+
+            # Controles de teclado
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_SPACE]:
+                replay_playing = not replay_playing
+                pygame.time.wait(200)
+            elif keys[pygame.K_RIGHT]:
+                replay_speed = min(4, replay_speed + 1)
+                pygame.time.wait(150)
+            elif keys[pygame.K_LEFT]:
+                replay_speed = max(-4, replay_speed - 1)
+                pygame.time.wait(150)
+
+            # Barra de progreso
+            progress = current_replay_frame / max(1, len(replay_data) - 1)
+            pygame.draw.rect(screen, (50, 50, 60), (100, constants.HEIGHT - 30, 600, 10))
+            pygame.draw.rect(screen, (255, 215, 0), (100, constants.HEIGHT - 30, int(600 * progress), 10))
+
+            info = FONT_SMALL.render(
+                f"Frame {current_replay_frame+1}/{len(replay_data)}  |  Vel: x{replay_speed}  |  {'▶️' if replay_playing else '⏸️'}",
+                True, (255, 255, 255)
+            )
+            screen.blit(info, (constants.WIDTH//2 - 150, constants.HEIGHT - 50))
+
+                        
 
         # Dibujo
         world.draw(screen)

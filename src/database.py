@@ -96,9 +96,3 @@ class GameDatabase:
         """
         self.cursor.execute("SELECT date, winner, player1_score, player2_score FROM statistics ORDER BY date DESC")
         return self.cursor.fetchall() # Devuelve una lista de tuplas
-    
-    
-    # (Dejamos tus funciones de 'players' / 'stats' si quieres usarlas para el botón Stats)
-    def update_player_stats(self, player_name, score):
-        # ... (tu código de update_player_stats se puede mantener aquí) ...
-        pass

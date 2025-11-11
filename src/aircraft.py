@@ -478,3 +478,4 @@ class Auto(Vehicle):
         super().__init__(id, x, y, base_position, "auto", 1,
                          ["person", "clothes", "food", "medicine"], color)
         self.speed = 2.2
+        

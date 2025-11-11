@@ -33,3 +33,7 @@ dist/
 
 # ---- CONFIGURACIÓN PERSONAL ----
 .env
+
+# Ignorar base de datos local
+game_data.db
+Partida_Guardada_*.pkl

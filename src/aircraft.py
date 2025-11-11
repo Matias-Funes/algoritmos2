@@ -46,14 +46,8 @@ class Vehicle:
         self.image = self._create_beautiful_sprite()
            
     def _get_vehicle_size(self):
-        """Tamaño según tipo de vehículo"""
-        sizes = {
-            "jeep": 30,
-            "moto": 22,
-            "camion": 36,
-            "auto": 26
-        }
-        return sizes.get(self.vehicle_type, 24)
+        """Tamaño según tipo de vehículo (en píxeles, basado en TILE)"""
+        return int(constants.VEHICLE_SIZES.get(self.vehicle_type, 0.85 * constants.TILE))
     
     def _create_beautiful_sprite(self):
         """Crea sprites hermosos estilo vista superior"""

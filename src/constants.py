@@ -21,22 +21,31 @@ MERCH_COUNTS = {
     "medicine": 10,   # Medicamentos
     "weapons": 10     # Armamentos
 }# Tamaños
-WIDTH, HEIGHT = 900, 600
+WIDTH, HEIGHT = 1300, 700
 # Panel de Control Fijo (UI)
 UI_PANEL_HEIGHT = 80  # Altura de la barra de botones (puedes ajustarla)
 UI_PANEL_Y = HEIGHT - UI_PANEL_HEIGHT # Posición Y donde empieza el panel
 # Mundo del Juego (Área de simulación)
 GAME_WORLD_HEIGHT = HEIGHT - UI_PANEL_HEIGHT # El mapa ahora es más bajo
 PLAYER = 20
-GRASS = 30
-TREE = 25
-PERSON = 25
-MERCH_SIZE = 20
-
-# Tamaño de celda (tile) usado por la grid
+GRASS =30
 TILE = GRASS
 GRID_WIDTH = WIDTH // TILE
 GRID_HEIGHT = GAME_WORLD_HEIGHT // TILE
+TREE = 0.9*TILE
+PERSON = 0.9*TILE
+MERCH_SIZE = 0.9*TILE
+
+# Tamaños de vehículos (como fracción de TILE)
+VEHICLE_SIZES = {
+    "jeep": 0.85 * TILE,      # Jeep: 85% de TILE
+    "moto": 0.75 * TILE,      # Moto: 75% de TILE (más pequeña)
+    "camion": 0.95 * TILE,    # Camión: 95% de TILE (más grande)
+    "auto": 0.80 * TILE       # Auto: 80% de TILE
+}
+
+# Tamaño de celda (tile) usado por la grid
+
 
 # Colores
 WHITE = (255, 255, 255)

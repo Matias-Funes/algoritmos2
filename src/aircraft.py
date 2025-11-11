@@ -318,7 +318,7 @@ class Vehicle:
                     self.returning_to_base = False
                     self.trips_left = self.max_trips
                     self.path.clear()
-                    # 🔧 Tomar decisión inmediata después de entregar
+                    # Tomar decisión inmediata después de entregar
                     if self.strategy and len(world.resources) > 0:
                         action = self.strategy.decide(self, world)
                         self.execute_action(action, world)
@@ -328,7 +328,7 @@ class Vehicle:
                     if not self.path:
                         self.set_path_to_base(world)
             
-            # 🔧 Siempre intentar tomar una decisión si no tenemos path
+            # Siempre intentar tomar una decisión si no tenemos path
             if not self.path and not self.forced_return and not self.returning_to_base:
                 if self.strategy:
                     action = self.strategy.decide(self, world)

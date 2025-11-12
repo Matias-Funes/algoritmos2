@@ -7,7 +7,7 @@ from src import constants
 # --------------------------------------------------------------------------------
 # MODO KAMIKAZE: Si es True, todos los vehículos irán directos a la mina más cercana
 # --------------------------------------------------------------------------------
-KAMIKAZE_MODE = False
+KAMIKAZE_MODE = True
 
 #-----------------------------------------------------------------------------------
 # MODO AGRESIVO: Estrategias que atacan enemigos cercanos

@@ -496,27 +496,40 @@ def main():
 
     def load_game_from_data(data):
         """
-        Reconstruye el estado completo del juego a partir de un diccionario de datos.
+        Restaura el estado del juego desde un diccionario.
+        Si el frame es 'liviano', solo actualiza posiciones y puntajes.
+        Si es completo, reconstruye todo el mundo.
         """
-        nonlocal game_time, current_state 
-        
-        # 1. Restaurar el mundo
+        nonlocal game_time, current_state
+
+        # --- Caso 1: Frame liviano (replay rápido) ---
+        if "p1" in data and "p2" in data:
+            for v, d in zip(player1_vehicles, data["p1"]):
+                v.x = d["x"]
+                v.y = d["y"]
+                v.alive = d.get("alive", True)
+                v.score = d.get("score", 0)
+            for v, d in zip(player2_vehicles, data["p2"]):
+                v.x = d["x"]
+                v.y = d["y"]
+                v.alive = d.get("alive", True)
+                v.score = d.get("score", 0)
+            return  # listo, no se recarga el mundo
+
+        # --- Caso 2: Frame completo (carga total) ---
         world.load_state(data['world'])
-        
-        # 2. Reconstruir flotas usando la función genérica
+
         player1_vehicles.clear()
         player2_vehicles.clear()
-        
         player1_vehicles.extend(_rebuild_fleet(data.get('player1_vehicles', [])))
         player2_vehicles.extend(_rebuild_fleet(data.get('player2_vehicles', [])))
 
-        # 3. Actualizar la lista de vehículos del mundo
         world.vehicles = player1_vehicles + player2_vehicles
         world.player1_vehicles = player1_vehicles
         world.player2_vehicles = player2_vehicles
-        
-        # 4. Restaurar el tiempo
+
         game_time = data.get('game_time', 0)
+
     
     
     def handle_mine_explosion(mine):
@@ -714,7 +727,7 @@ def main():
             
             # --- MANEJO DE CLICS DEL MOUSE ---
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1: # Clic izquierdo
+                if event.button == 1:  # Clic izquierdo
                     pos = pygame.mouse.get_pos()
 
                     # --- Lógica si estamos en un MENÚ DE SELECCIÓN DE ARCHIVO ---
@@ -722,11 +735,9 @@ def main():
                         for rect, filename in file_menu_buttons:
                             if rect.collidepoint(pos):
                                 if filename == "CANCEL":
-                                    current_state = previous_state # Volver a PREPARATION o PAUSED
-                                # Si NO es "cancelar", es un archivo
+                                    current_state = previous_state  # Volver a PREPARATION o PAUSED
                                 else:
                                     try:
-                                        # -- Lógica dividida --
                                         if current_state == GameState.SELECT_LOAD:
                                             print(f"Cargando partida: {filename}")
                                             with open(filename, 'rb') as f:
@@ -737,16 +748,15 @@ def main():
                                         elif current_state == GameState.SELECT_REPLAY:
                                             print(f"Cargando replay: {filename}")
                                             with open(filename, 'rb') as f:
-                                                replay_data = pickle.load(f) # Carga la lista de "fotos"
-                                            current_replay_frame = 0 # Reinicia el cabezal
-                                            current_state = GameState.REPLAYING # Inicia el modo replay
+                                                replay_data = pickle.load(f)
+                                            current_replay_frame = 0
+                                            current_state = GameState.REPLAYING
                                             
                                     except Exception as e:
                                         print(f"Error al cargar el archivo {filename}: {e}")
-                                
-                                break # Salir del bucle for (ya encontramos un clic)
+                                break  # salir del bucle de botones
                     
-                    # Lógica si estamos en el JUEGO (panel de control)
+                    # --- Lógica del panel de control (en juego o replay) ---
                     elif current_state != GameState.GAME_OVER:
                         if btn_init.collidepoint(pos) and current_state == GameState.PREPARATION:
                             world.initialize_map_elements()
@@ -755,70 +765,82 @@ def main():
                             current_frame_index = 0
                             stats_saved_this_game = False
                         
-                        elif btn_play.collidepoint(pos) and play_enabled: # Usamos la variable de estado
+                        elif btn_play.collidepoint(pos) and play_enabled:
                             if current_state == GameState.REPLAY_PAUSED:
-                                print(f"Reanudando desde el frame {current_frame_index}")
-                                # Cargar el estado actual del frame donde quedó
-                                frame_data = frame_history[current_frame_index]
-                                load_game_from_data(frame_data)
-                                current_state = GameState.REPLAYING # Reanuda el replay
+                                print(f"Reanudando replay desde frame {current_replay_frame}")
+                                current_state = GameState.REPLAYING
                             else:
                                 if current_state == GameState.PREPARATION and not world.resources:
                                     print("Presiona 'Init' primero para generar el mapa.")
                                     continue
                                 current_state = GameState.PLAYING
                         
-                        elif btn_pause.collidepoint(pos) and pause_enabled: # Usamos la variable de estado
+                        elif btn_pause.collidepoint(pos) and pause_enabled:
                             if current_state == GameState.PLAYING:
-                                current_state = GameState.PAUSED # Pausa el juego
+                                current_state = GameState.PAUSED
                             elif current_state == GameState.REPLAYING:
-                                current_state = GameState.REPLAY_PAUSED # Pausa el replay
-  
-                       # --- Paso adelante ---
-                        elif btn_step_fwd.collidepoint(pos) and current_state == GameState.PAUSED:
-                            print("Avanzando varios frames lógicos...")
-                            step_size = 20  # cantidad de frames que avanza por clic
-                            for _ in range(step_size):
-                                if run_game_logic_tick():
-                                    try:
-                                        frame_history.append(get_full_game_state())
-                                        current_frame_index = len(frame_history) - 1
-                                    except Exception as e:
-                                        print(f"Error al guardar frame: {e}")
-                            print(f"Avanzó {step_size} frames.")
+                                current_state = GameState.REPLAY_PAUSED
+                        
+                        # --- Paso adelante ---
+                        elif btn_step_fwd.collidepoint(pos):
+                            if current_state == GameState.PAUSED:
+                                print("Avanzando varios frames lógicos (juego normal)...")
+                                step_size = 20
+                                for _ in range(step_size):
+                                    if run_game_logic_tick():
+                                        try:
+                                            frame_history.append(get_full_game_state())
+                                            current_frame_index = len(frame_history) - 1
+                                        except Exception as e:
+                                            print(f"Error al guardar frame: {e}")
+                                print(f"Avanzó {step_size} frames.")
+                            
+                            elif current_state == GameState.REPLAY_PAUSED:
+                                # --- Adelantar replay varios frames ---
+                                if replay_data:
+                                    step = 5  # cantidad de frames que avanza por clic (ajustable)
+                                    keys = pygame.key.get_mods()
+                                    if keys & pygame.KMOD_SHIFT:
+                                        step = 20  # con Shift, salto grande
+                                    current_replay_frame = min(current_replay_frame + step, len(replay_data) - 1)
+                                    load_game_from_data(replay_data[current_replay_frame])
+                                    print(f"Replay -> +{step} frames | Frame {current_replay_frame+1}/{len(replay_data)}")
+                                else:
+                                    print("No hay datos de replay para avanzar.")
 
                         # --- Paso atrás ---
-                        elif btn_step_back.collidepoint(pos) and current_state == GameState.PAUSED:
-                            if current_frame_index > 0:
-                                # Retroceder 10 frames por clic
-                                current_frame_index = max(0, current_frame_index - 10)
-                                print(f"Retrocediendo al frame {current_frame_index}")
-
-                                frame_data = frame_history[current_frame_index]
-
-                                # Detectamos el tipo de frame
-                                if "p1" in frame_data and "p2" in frame_data:
-                                    # Frame liviano, actualizamos rápido solo posiciones y estado
-                                    for v, data in zip(player1_vehicles, frame_data["p1"]):
-                                        v.x = data["x"]
-                                        v.y = data["y"]
-                                        v.alive = data["alive"]
-                                        v.score = data["score"]
-
-                                    for v, data in zip(player2_vehicles, frame_data["p2"]):
-                                        v.x = data["x"]
-                                        v.y = data["y"]
-                                        v.alive = data["alive"]
-                                        v.score = data["score"]
-
-                                elif "player1_vehicles" in frame_data:
-                                    # Frame completo carga total
-                                    load_game_from_data(frame_data)
+                        elif btn_step_back.collidepoint(pos):
+                            if current_state == GameState.PAUSED:
+                                if current_frame_index > 0:
                                     current_frame_index = max(0, current_frame_index - 10)
-                                    current_game_state = frame_history[current_frame_index]  # el juego se alinea con ese frame
+                                    print(f"Retrocediendo al frame {current_frame_index}")
+                                    frame_data = frame_history[current_frame_index]
 
-                            else:
-                                print("Llegaste al inicio del juego.")
+                                    # Detectamos tipo de frame
+                                    if "p1" in frame_data and "p2" in frame_data:
+                                        for v, data in zip(player1_vehicles, frame_data["p1"]):
+                                            v.x = data["x"]; v.y = data["y"]
+                                            v.alive = data["alive"]; v.score = data["score"]
+                                        for v, data in zip(player2_vehicles, frame_data["p2"]):
+                                            v.x = data["x"]; v.y = data["y"]
+                                            v.alive = data["alive"]; v.score = data["score"]
+                                    else:
+                                        load_game_from_data(frame_data)
+                                else:
+                                    print("Llegaste al inicio del juego.")
+
+                            elif current_state == GameState.REPLAY_PAUSED:
+                                # --- Retroceder replay varios frames ---
+                                if replay_data:
+                                    step = 5  # cantidad de frames que retrocede por clic
+                                    keys = pygame.key.get_mods()
+                                    if keys & pygame.KMOD_SHIFT:
+                                        step = 20  # con Shift, salto grande
+                                    current_replay_frame = max(0, current_replay_frame - step)
+                                    load_game_from_data(replay_data[current_replay_frame])
+                                    print(f"Replay -> -{step} frames | Frame {current_replay_frame+1}/{len(replay_data)}")
+                                else:
+                                    print("No hay datos de replay para retroceder.")
 
                         elif btn_save.collidepoint(pos) and save_enabled:
                             print("Guardando partida...")
@@ -836,10 +858,9 @@ def main():
                             file_menu_cache = glob.glob("Partida_Guardada_*.pkl")
                             file_menu_cache.sort(key=os.path.getctime, reverse=True)
                             file_menu_scroll_offset = 0
-                            previous_state = current_state 
+                            previous_state = current_state
                             current_state = GameState.SELECT_LOAD
 
-                        # Lógica del botón Replay
                         elif btn_replay.collidepoint(pos) and (current_state == GameState.PREPARATION or current_state == GameState.PAUSED):
                             print("Abriendo menú de Replay...")
                             file_menu_cache = glob.glob("Replay_*.pkl")
@@ -851,12 +872,13 @@ def main():
                         elif btn_stats.collidepoint(pos) and (current_state == GameState.PREPARATION or current_state == GameState.PAUSED):
                             print("Abriendo menú de Estadísticas...")
                             try:
-                                stats_data = db.get_statistics() # Carga los datos
+                                stats_data = db.get_statistics()
                                 stats_scroll_offset = 0
                                 previous_state = current_state
                                 current_state = GameState.SHOW_STATS
                             except Exception as e:
                                 print(f"Error al cargar estadísticas: {e}")
+
                                 
             # MANEJO DE TECLADO
             if event.type == pygame.KEYDOWN:
@@ -908,22 +930,71 @@ def main():
 
                     
         elif current_state == GameState.REPLAYING:
+            # Inicialización la primera vez que entramos aquí
             if 'replay_playing' not in locals():
-                replay_playing = True     # Reproduce automáticamente al entrar
-                replay_speed = 1          # Velocidad normal
+                replay_playing = True     # reproducir automáticamente al entrar
+                replay_speed = 1          # velocidad (frames por tick). puede ser negativo
+                replay_fps = 30           # fps objetivo para el replay (ajustable)
                 last_update_time = pygame.time.get_ticks()
+                last_key_time = 0         # para debounce no bloqueante
+                key_debounce_ms = 150     # ms de debounce para teclas
 
             now = pygame.time.get_ticks()
-            if replay_playing and now - last_update_time > (100 // abs(replay_speed)):
+
+            # calcular intervalo en ms según replay_fps y velocidad
+            # si replay_speed es 0 (no debería), lo tratamos como 1
+            eff_speed = replay_speed if replay_speed != 0 else 1
+            base_interval = int(1000 / replay_fps)                 # ms por frame a fps objetivo
+            interval = max(1, int(base_interval / abs(eff_speed))) # si speed>1, interval se reduce (más rápido)
+
+            # avanzar frames si estamos reproduciendo y pasó el intervalo
+            if replay_playing and now - last_update_time >= interval:
                 last_update_time = now
-                current_replay_frame += replay_speed
-                current_replay_frame = max(0, min(current_replay_frame, len(replay_data) - 1))
-                try:
-                    frame_data = replay_data[current_replay_frame]
-                    load_game_from_data(frame_data)
-                except Exception as e:
-                    print(f"Error al reproducir frame de replay: {e}")
+
+                # avanzar N frames (puede ser negativo)
+                next_frame = current_replay_frame + replay_speed
+                # clamp al rango válido
+                next_frame = max(0, min(next_frame, max(0, len(replay_data) - 1)))
+                if next_frame != current_replay_frame:
+                    current_replay_frame = next_frame
+                    try:
+                        frame_data = replay_data[current_replay_frame]
+                        load_game_from_data(frame_data)
+                    except Exception as e:
+                        print(f"Error al reproducir frame de replay: {e}")
+                        replay_playing = False
+                else:
+                    # llegamos al final o inicio — pausamos la reproducción automática
                     replay_playing = False
+
+            # Controles de teclado SIN bloquear (debounce no bloqueante)
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_SPACE] and now - last_key_time > key_debounce_ms:
+                replay_playing = not replay_playing
+                last_key_time = now
+
+            # Aumentar velocidad (más frames por tick)
+            if keys[pygame.K_RIGHT] and now - last_key_time > key_debounce_ms:
+                replay_speed = min(8, replay_speed + 1)  # tope ±8, ajustable
+                if replay_speed == 0: replay_speed = 1
+                last_key_time = now
+
+            # Disminuir / retroceder velocidad (negativo para rewind)
+            if keys[pygame.K_LEFT] and now - last_key_time > key_debounce_ms:
+                replay_speed = max(-8, replay_speed - 1)
+                if replay_speed == 0: replay_speed = -1
+                last_key_time = now
+
+            # Barra de progreso (igual que antes)
+            progress = current_replay_frame / max(1, len(replay_data) - 1)
+            pygame.draw.rect(screen, (50, 50, 60), (100, constants.HEIGHT - 30, 600, 10))
+            pygame.draw.rect(screen, (255, 215, 0), (100, constants.HEIGHT - 30, int(600 * progress), 10))
+
+            info = FONT_SMALL.render(
+                f"Frame {current_replay_frame+1}/{len(replay_data)}  |  Vel: x{replay_speed}  |  {'▶️' if replay_playing else '⏸️'}",
+                True, (255, 255, 255)
+            )
+            screen.blit(info, (constants.WIDTH//2 - 150, constants.HEIGHT - 50))
 
             # Controles de teclado
             keys = pygame.key.get_pressed()

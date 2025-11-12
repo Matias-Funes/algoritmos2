@@ -528,10 +528,8 @@ def main():
                 # --- Lógica de reconstrucción (la misma que ya tenías) ---
                 g_x = v_data['gx']
                 g_y = v_data['gy']
-                p_x = g_x * constants.TILE
-                p_y = g_y * constants.TILE
-                
-                new_v = cls(v_data['id'], p_x, p_y, 
+                # CORRECCIÓN: Pasamos gx, gy directamente al constructor del vehículo.
+                new_v = cls(v_data['id'], g_x, g_y,
                             v_data['base_position_pixels'], v_data['color'])
 
                 new_v.trips_left = v_data.get('trips_left', 1)

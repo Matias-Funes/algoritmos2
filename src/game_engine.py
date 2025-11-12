@@ -366,37 +366,44 @@ def main():
         draw_button_text(surface, "Replay", btn_replay)
         draw_button_text(surface, "Stats", btn_stats)
         
-    def draw_file_selection_menu(surface, title, file_list, scroll_offset):
-        """Dibuja un menú genérico para seleccionar un archivo (guardado o replay)."""
-        nonlocal file_menu_buttons # Usamos la variable global
-        file_menu_buttons.clear() # Limpiamos los botones
-
+    def draw_popup_base(surface, width, height):
+        """
+        Dibuja el fondo oscuro y el panel principal para CUALQUIER pop-up.
+        Devuelve las coordenadas (x, y) del panel para dibujar contenido dentro.
+        """
         # 1. Fondo oscuro
         overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 200))
         surface.blit(overlay, (0, 0))
 
         # 2. Panel principal
-        panel_width = 500
-        panel_height = 400
-        panel_x = constants.WIDTH // 2 - panel_width // 2
-        panel_y = constants.HEIGHT // 2 - panel_height // 2
-        draw_panel(surface, panel_x, panel_y, panel_width, panel_height, (40, 50, 60))
+        panel_x = constants.WIDTH // 2 - width // 2
+        panel_y = constants.HEIGHT // 2 - height // 2
+        draw_panel(surface, panel_x, panel_y, width, height, (40, 50, 60))
+        
+        return panel_x, panel_y # Devolvemos las coordenadas
+    
+    def draw_file_selection_menu(surface, title, file_list, scroll_offset):
+        """Dibuja un menú genérico para seleccionar un archivo."""
+        nonlocal file_menu_buttons
+        file_menu_buttons.clear()
 
-        # 3. Título (ahora es un parámetro)
+        # 1. Dibuja el fondo y el panel (500x400)
+        panel_x, panel_y = draw_popup_base(surface, 500, 400)
+
+        # 2. Título
         title_surf = FONT_TITLE.render(title, True, (255, 215, 0))
         title_rect = title_surf.get_rect(center=(constants.WIDTH // 2, panel_y + 40))
         surface.blit(title_surf, title_rect)
 
-        # 4. Dibujar la lista de archivos (ahora es un parámetro)
+        # 3. Dibujar la lista de archivos
         y_pos = panel_y + 80
         files_to_show = file_list[scroll_offset : scroll_offset + 5]
 
         for i, filename in enumerate(files_to_show):
-            # Limpiar el nombre para que sea más legible
             display_name = filename.replace(".pkl", "").replace("_", "  ")
             
-            btn_rect = pygame.Rect(panel_x + 20, y_pos, panel_width - 40, 40)
+            btn_rect = pygame.Rect(panel_x + 20, y_pos, 500 - 40, 40)
             file_menu_buttons.append((btn_rect, filename)) # Guardamos rect y nombre
 
             mouse_pos = pygame.mouse.get_pos()
@@ -409,8 +416,8 @@ def main():
             surface.blit(text_surf, (btn_rect.x + 15, btn_rect.y + 10))
             y_pos += 50
         
-        # 5. Botón de Cancelar
-        btn_cancel_rect = pygame.Rect(constants.WIDTH // 2 - 50, panel_y + panel_height - 60, 100, 40)
+        # 4. Botón de Cancelar
+        btn_cancel_rect = pygame.Rect(constants.WIDTH // 2 - 50, panel_y + 400 - 60, 100, 40)
         file_menu_buttons.append((btn_cancel_rect, "CANCEL"))
         
         if btn_cancel_rect.collidepoint(pygame.mouse.get_pos()):
@@ -421,16 +428,11 @@ def main():
     
     def draw_stats_menu(surface):
         """Dibuja un menú superpuesto para mostrar el historial de partidas."""
+        nonlocal file_menu_buttons # Usamos la variable global
+        file_menu_buttons.clear() # Limpiamos los botones
 
-        # 1. Fondo oscuro y Panel
-        overlay = pygame.Surface((constants.WIDTH, constants.HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 200))
-        surface.blit(overlay, (0, 0))
-        panel_width = 600
-        panel_height = 400
-        panel_x = constants.WIDTH // 2 - panel_width // 2
-        panel_y = constants.HEIGHT // 2 - panel_height // 2
-        draw_panel(surface, panel_x, panel_y, panel_width, panel_height, (40, 50, 60))
+        # 1. Dibuja el fondo y el panel (600x400)
+        panel_x, panel_y = draw_popup_base(surface, 600, 400)
 
         # 2. Título
         title = FONT_TITLE.render("Historial de Partidas", True, (255, 215, 0))
@@ -454,16 +456,24 @@ def main():
         for row in stats_to_show:
             date, winner, p1_score, p2_score = row
             
-            # Formatear datos
             date_surf = FONT_NORMAL.render(date, True, (255, 255, 255))
             winner_surf = FONT_NORMAL.render(str(winner), True, (255, 255, 255))
             score_surf = FONT_NORMAL.render(f"{p1_score} / {p2_score}", True, (255, 215, 0))
             
-            # Dibujar
             surface.blit(date_surf, (panel_x + 30, y_pos))
             surface.blit(winner_surf, (panel_x + 200, y_pos))
             surface.blit(score_surf, (panel_x + 350, y_pos))
             y_pos += 40
+        
+        # 5. Botón de Cerrar
+        btn_close_rect = pygame.Rect(constants.WIDTH // 2 - 50, panel_y + 400 - 60, 100, 40)
+        file_menu_buttons.append((btn_close_rect, "CANCEL")) # "CANCEL" es la acción
+        
+        if btn_close_rect.collidepoint(pygame.mouse.get_pos()):
+            pygame.draw.rect(surface, (100, 110, 120), btn_close_rect, border_radius=5)
+        else:
+            pygame.draw.rect(surface, (60, 70, 80), btn_close_rect, border_radius=5)
+        draw_button_text(surface, "Cerrar", btn_close_rect)
     
     # Variables para efectos
     last_p1_alive = 10
@@ -512,7 +522,6 @@ def main():
         a partir de sus datos guardados.
         """
         rebuilt_fleet = [] # 1. Crea una lista vacía
-        
         # Diccionario para recrear vehículos por su tipo
         vehicle_classes = {
             "jeep": Jeep,
@@ -525,7 +534,7 @@ def main():
             if v_type in vehicle_classes:
                 cls = vehicle_classes[v_type]
                 
-                # --- Lógica de reconstrucción (la misma que ya tenías) ---
+                # Lógica de reconstrucción
                 g_x = v_data['gx']
                 g_y = v_data['gy']
                 # CORRECCIÓN: Pasamos gx, gy directamente al constructor del vehículo.
@@ -551,7 +560,7 @@ def main():
                         m_obj.value = constants.MERCH_POINTS.get(item_type, 0)
                         new_v.cargo.append(m_obj)
                 
-                # Restaurar el "cerebro" (usa STRATEGY_MAP, que es global)
+                # Restaurar el "cerebro"
                 strategy_name = v_data.get('strategy_name')
                 if strategy_name in STRATEGY_MAP:
                     new_v.strategy = STRATEGY_MAP[strategy_name]()
@@ -598,8 +607,7 @@ def main():
 
         game_time = data.get('game_time', 0)
 
-    
-    
+
     def handle_mine_explosion(mine):
         """
         Gestiona la lógica completa de la explosión de una mina,
@@ -963,8 +971,7 @@ def main():
                                 current_state = GameState.SHOW_STATS
                             except Exception as e:
                                 print(f"Error al cargar estadísticas: {e}")
-
-                                
+             
             # MANEJO DE TECLADO
             if event.type == pygame.KEYDOWN:
                 # Comprobación de estados de menú O de replay
@@ -1017,30 +1024,39 @@ def main():
         elif current_state == GameState.REPLAYING:
             # Inicialización la primera vez que entramos aquí
             if 'replay_playing' not in locals():
-                replay_playing = True     # reproducir automáticamente al entrar
-                replay_speed = 1          # velocidad (frames por tick). puede ser negativo
-                replay_fps = 30           # fps objetivo para el replay (ajustable)
+                replay_playing = True
+                replay_speed = 1
+                replay_fps = 30 
                 last_update_time = pygame.time.get_ticks()
-                last_key_time = 0         # para debounce no bloqueante
-                key_debounce_ms = 150     # ms de debounce para teclas
+                last_key_time = 0
+                key_debounce_ms = 150
 
             now = pygame.time.get_ticks()
 
-            # calcular intervalo en ms según replay_fps y velocidad
-            # si replay_speed es 0 (no debería), lo tratamos como 1
             eff_speed = replay_speed if replay_speed != 0 else 1
-            base_interval = int(1000 / replay_fps)                 # ms por frame a fps objetivo
-            interval = max(1, int(base_interval / abs(eff_speed))) # si speed>1, interval se reduce (más rápido)
+            base_interval = int(1000 / replay_fps)
+            interval = max(1, int(base_interval / abs(eff_speed)))
 
-            # avanzar frames si estamos reproduciendo y pasó el intervalo
+            # --- LÓGICA DE REPRODUCCIÓN CORREGIDA ---
             if replay_playing and now - last_update_time >= interval:
                 last_update_time = now
 
-                # avanzar N frames (puede ser negativo)
+                # 1. Calculamos el próximo frame
                 next_frame = current_replay_frame + replay_speed
-                # clamp al rango válido
                 next_frame = max(0, min(next_frame, max(0, len(replay_data) - 1)))
-                if next_frame != current_replay_frame:
+
+                # 2. Comprobamos si nos movimos o si llegamos al final/inicio
+                if next_frame == current_replay_frame:
+                    # No nos movimos (estamos al inicio o al final)
+                    replay_playing = False # Pausamos
+                    
+                    # Si pausamos Y estamos en el último frame Y íbamos hacia adelante
+                    if current_replay_frame == len(replay_data) - 1 and replay_speed > 0:
+                        print("Replay finalizado.")
+                        current_state = GameState.GAME_OVER #Terminamos el juego
+                
+                # 4. Si nos movimos, cargamos el frame
+                else:
                     current_replay_frame = next_frame
                     try:
                         frame_data = replay_data[current_replay_frame]
@@ -1048,52 +1064,24 @@ def main():
                     except Exception as e:
                         print(f"Error al reproducir frame de replay: {e}")
                         replay_playing = False
-                else:
-                    # llegamos al final o inicio — pausamos la reproducción automática
-                    replay_playing = False
 
-            # Controles de teclado SIN bloquear (debounce no bloqueante)
+            # Controles de teclado (debounce no bloqueante)
             keys = pygame.key.get_pressed()
             if keys[pygame.K_SPACE] and now - last_key_time > key_debounce_ms:
                 replay_playing = not replay_playing
                 last_key_time = now
 
-            # Aumentar velocidad (más frames por tick)
             if keys[pygame.K_RIGHT] and now - last_key_time > key_debounce_ms:
-                replay_speed = min(8, replay_speed + 1)  # tope ±8, ajustable
+                replay_speed = min(8, replay_speed + 1)
                 if replay_speed == 0: replay_speed = 1
                 last_key_time = now
 
-            # Disminuir / retroceder velocidad (negativo para rewind)
             if keys[pygame.K_LEFT] and now - last_key_time > key_debounce_ms:
                 replay_speed = max(-8, replay_speed - 1)
                 if replay_speed == 0: replay_speed = -1
                 last_key_time = now
 
             # Barra de progreso (igual que antes)
-            progress = current_replay_frame / max(1, len(replay_data) - 1)
-            pygame.draw.rect(screen, (50, 50, 60), (100, constants.HEIGHT - 30, 600, 10))
-            pygame.draw.rect(screen, (255, 215, 0), (100, constants.HEIGHT - 30, int(600 * progress), 10))
-
-            info = FONT_SMALL.render(
-                f"Frame {current_replay_frame+1}/{len(replay_data)}  |  Vel: x{replay_speed}  |  {'▶️' if replay_playing else '⏸️'}",
-                True, (255, 255, 255)
-            )
-            screen.blit(info, (constants.WIDTH//2 - 150, constants.HEIGHT - 50))
-
-            # Controles de teclado
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_SPACE]:
-                replay_playing = not replay_playing
-                pygame.time.wait(200)
-            elif keys[pygame.K_RIGHT]:
-                replay_speed = min(4, replay_speed + 1)
-                pygame.time.wait(150)
-            elif keys[pygame.K_LEFT]:
-                replay_speed = max(-4, replay_speed - 1)
-                pygame.time.wait(150)
-
-            # Barra de progreso
             progress = current_replay_frame / max(1, len(replay_data) - 1)
             pygame.draw.rect(screen, (50, 50, 60), (100, constants.HEIGHT - 30, 600, 10))
             pygame.draw.rect(screen, (255, 215, 0), (100, constants.HEIGHT - 30, int(600 * progress), 10))

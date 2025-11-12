@@ -21,7 +21,7 @@ MERCH_COUNTS = {
     "medicine": 10,   # Medicamentos
     "weapons": 10     # Armamentos
 }# Tamaños
-WIDTH, HEIGHT = 900, 600
+WIDTH, HEIGHT = 1200, 710
 # Panel de Control Fijo (UI)
 UI_PANEL_HEIGHT = 80  # Altura de la barra de botones (puedes ajustarla)
 UI_PANEL_Y = HEIGHT - UI_PANEL_HEIGHT # Posición Y donde empieza el panel

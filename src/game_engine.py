@@ -79,43 +79,52 @@ def main():
     base2_x = constants.WIDTH - 50
     base2_y = constants.GAME_WORLD_HEIGHT // 2
 
+    # Convertir las posiciones de base de píxeles a coordenadas de celda
+    base1_gx = base1_x // constants.TILE
+    base1_gy = base1_y // constants.TILE
+    base2_gx = base2_x // constants.TILE
+    base2_gy = base2_y // constants.TILE
+
     # ==========================================
     # JUGADOR 1 - ROJO (Izquierda)
     # ==========================================
     player1_vehicles = []
     
     # 3 Jeeps en formación escalonada
+    # Los offsets se ajustan para ser en celdas
     for i in range(3):
-        y_offset = (i - 1) * 45
-        jeep = Jeep(f"P1_Jeep_{i}", base1_x + i*8, base1_y + y_offset, 
+        jeep_gx_offset = i // 2 # 0, 0, 1
+        jeep_gy_offset = (i - 1) # -1, 0, 1
+        jeep = Jeep(f"P1_Jeep_{i}", base1_gx + jeep_gx_offset, base1_gy + jeep_gy_offset, 
                    (base1_x, base1_y), (220, 20, 20))
         jeep.strategy = JeepStrategy()
         player1_vehicles.append(jeep)
     
     # 2 Motos adelante
     for i in range(2):
-        y_offset = (i - 0.5) * 40
-        moto = Moto(f"P1_Moto_{i}", base1_x + 30, base1_y + y_offset, 
+        moto_gy_offset = (i * 2 - 1) # -1, 1
+        moto = Moto(f"P1_Moto_{i}", base1_gx + 1, base1_gy + moto_gy_offset, 
                    (base1_x, base1_y), (255, 80, 80))
         moto.strategy = MotoStrategy()
         player1_vehicles.append(moto)
     
     # 2 Camiones atrás
     for i in range(2):
-        y_offset = (i - 0.5) * 55
-        camion = Camion(f"P1_Camion_{i}", base1_x - 25, base1_y + y_offset, 
+        camion_gy_offset = (i * 2 - 1) # -1, 1
+        camion = Camion(f"P1_Camion_{i}", base1_gx - 1, base1_gy + camion_gy_offset, 
                        (base1_x, base1_y), (180, 0, 0))
         camion.strategy = CamionStrategy()
         player1_vehicles.append(camion)
     
     # 3 Autos en V
-    auto_positions = [
-        (base1_x + 20, base1_y - 30),
-        (base1_x + 20, base1_y + 30),
-        (base1_x + 40, base1_y)
+    # Se definen directamente en coordenadas de celda
+    auto_grid_positions = [
+        (base1_gx, base1_gy - 1),
+        (base1_gx, base1_gy + 1),
+        (base1_gx + 1, base1_gy)
     ]
-    for i, (ax, ay) in enumerate(auto_positions):
-        auto = Auto(f"P1_Auto_{i}", ax, ay, (base1_x, base1_y), (200, 40, 40))
+    for i, (agx, agy) in enumerate(auto_grid_positions):
+        auto = Auto(f"P1_Auto_{i}", agx, agy, (base1_x, base1_y), (200, 40, 40))
         auto.strategy = AutoStrategy()
         player1_vehicles.append(auto)
 
@@ -124,44 +133,105 @@ def main():
     # ==========================================
     player2_vehicles = []
     
-    # 3 Jeeps en formación escalonada
+    # 3 Jeeps en formación escalonada (offsets inversos para el lado derecho)
     for i in range(3):
-        y_offset = (i - 1) * 45
-        jeep = Jeep(f"P2_Jeep_{i}", base2_x - i*8, base2_y + y_offset, 
+        jeep_gx_offset = -(i // 2) # 0, 0, -1
+        jeep_gy_offset = (i - 1) # -1, 0, 1
+        jeep = Jeep(f"P2_Jeep_{i}", base2_gx + jeep_gx_offset, base2_gy + jeep_gy_offset, 
                    (base2_x, base2_y), (20, 20, 220))
         jeep.strategy = AggressiveJeepStrategy()
         player2_vehicles.append(jeep)
     
     # 2 Motos adelante
     for i in range(2):
-        y_offset = (i - 0.5) * 40
-        moto = Moto(f"P2_Moto_{i}", base2_x - 30, base2_y + y_offset, 
+        moto_gy_offset = (i * 2 - 1) # -1, 1
+        moto = Moto(f"P2_Moto_{i}", base2_gx - 1, base2_gy + moto_gy_offset, 
                    (base2_x, base2_y), (80, 80, 255))
         moto.strategy = FastMotoStrategy()
         player2_vehicles.append(moto)
     
     # 2 Camiones atrás
     for i in range(2):
-        y_offset = (i - 0.5) * 55
-        camion = Camion(f"P2_Camion_{i}", base2_x + 25, base2_y + y_offset, 
+        camion_gy_offset = (i * 2 - 1) # -1, 1
+        camion = Camion(f"P2_Camion_{i}", base2_gx + 1, base2_gy + camion_gy_offset, 
                        (base2_x, base2_y), (0, 0, 180))
         camion.strategy = SupportCamionStrategy()
         player2_vehicles.append(camion)
     
     # 3 Autos en V
-    auto_positions = [
-        (base2_x - 20, base2_y - 30),
-        (base2_x - 20, base2_y + 30),
-        (base2_x - 40, base2_y)
+    # Se definen directamente en coordenadas de celda
+    auto_grid_positions = [
+        (base2_gx, base2_gy - 1),
+        (base2_gx, base2_gy + 1),
+        (base2_gx - 1, base2_gy)
     ]
-    for i, (ax, ay) in enumerate(auto_positions):
-        auto = Auto(f"P2_Auto_{i}", ax, ay, (base2_x, base2_y), (40, 40, 200))
+    for i, (agx, agy) in enumerate(auto_grid_positions):
+        auto = Auto(f"P2_Auto_{i}", agx, agy, (base2_x, base2_y), (40, 40, 200))
         auto.strategy = BalancedAutoStrategy()
         player2_vehicles.append(auto)
 
     world.vehicles = player1_vehicles + player2_vehicles
     world.player1_vehicles = player1_vehicles
     world.player2_vehicles = player2_vehicles
+
+    # ... (rest of the main function) ...
+
+    def _rebuild_fleet(vehicle_data_list):
+        """
+        Función genérica para reconstruir una flota (lista de vehículos)
+        a partir de sus datos guardados.
+        """
+        rebuilt_fleet = [] # 1. Crea una lista vacía
+        
+        # Diccionario para recrear vehículos por su tipo
+        vehicle_classes = {
+            "jeep": Jeep,
+            "moto": Moto,
+            "camion": Camion,
+            "auto": Auto
+        }
+        for v_data in vehicle_data_list: # 2. Itera sobre los datos
+            v_type = v_data.get('vehicle_type')
+            if v_type in vehicle_classes:
+                cls = vehicle_classes[v_type]
+                
+                # --- Lógica de reconstrucción (la misma que ya tenías) ---
+                g_x = v_data['gx']
+                g_y = v_data['gy']
+                # Ya no necesitamos calcular p_x, p_y aquí, pasamos gx, gy directamente
+                
+                new_v = cls(v_data['id'], g_x, g_y, 
+                            v_data['base_position_pixels'], v_data['color'])
+
+                new_v.trips_left = v_data.get('trips_left', 1)
+                new_v.alive = v_data.get('alive', True)
+                new_v.score = v_data.get('score', 0)
+                new_v.returning_to_base = v_data.get('returning_to_base', False)
+                new_v.at_base = v_data.get('at_base', False)
+                new_v.forced_return = v_data.get('forced_return', False)
+                new_v.speed_pixels_per_update = v_data.get('speed_pixels_per_update', 1.5)
+
+                new_v.cargo = []
+                for item_type in v_data.get('cargo', []):
+                    if item_type == 'person':
+                        p_obj = Person(0,0)
+                        p_obj.value = constants.POINTS_PERSON
+                        new_v.cargo.append(p_obj) 
+                    elif item_type in constants.MERCH_POINTS:
+                        m_obj = Merchandise(0,0, item_type)
+                        m_obj.value = constants.MERCH_POINTS.get(item_type, 0)
+                        new_v.cargo.append(m_obj)
+                
+                # Restaurar el "cerebro" (usa STRATEGY_MAP, que es global)
+                strategy_name = v_data.get('strategy_name')
+                if strategy_name in STRATEGY_MAP:
+                    new_v.strategy = STRATEGY_MAP[strategy_name]()
+                else:
+                    new_v.strategy = None
+                
+                rebuilt_fleet.append(new_v) # 3. Añade el vehículo a la NUEVA lista
+        
+        return rebuilt_fleet # 4. Devuelve la flota completa    
 
     current_state = GameState.PREPARATION
     game_time = 0
@@ -618,9 +688,20 @@ def main():
                 if not stats_saved_this_game:
                     p1_score = sum(v.score for v in player1_vehicles)
                     p2_score = sum(v.score for v in player2_vehicles)
+                    
+                    p1_alive = sum(1 for v in player1_vehicles if v.alive)
+                    p2_alive = sum(1 for v in player2_vehicles if v.alive)
+
                     winner = "Empate"
-                    if p1_score > p2_score: winner = "Jugador 1"
-                    elif p2_score > p1_score: winner = "Jugador 2"
+                    if p1_alive == 0 and p2_alive > 0:
+                        winner = "Jugador 2"
+                    elif p2_alive == 0 and p1_alive > 0:
+                        winner = "Jugador 1"
+                    elif p1_score > p2_score: 
+                        winner = "Jugador 1"
+                    elif p2_score > p1_score: 
+                        winner = "Jugador 2"
+
                     db.save_match_result(winner, p1_score, p2_score)
                     stats_saved_this_game = True
                 
@@ -678,6 +759,12 @@ def main():
             a_logical_update_happened = True
         last_p1_alive = p1_alive_now
         last_p2_alive = p2_alive_now
+        
+        # LÓGICA DE FIN DE JUEGO POR ANIQUILACIÓN
+        if (p1_alive_now == 0 or p2_alive_now == 0) and not hasattr(world, 'ending_phase'):
+            a_logical_update_happened = True
+            world.ending_phase = True
+            world.ending_timer = 301 # Forzar fin inmediato en el siguiente ciclo
         
         # 6. GRABAR FOTOGRAMA PARA REPLAY
         if a_logical_update_happened:
@@ -1135,7 +1222,15 @@ def main():
             # Determinar ganador
             y_start += 60
             winner_font = pygame.font.SysFont("Arial", 28, bold=True)
-            if p1_score > p2_score:
+            
+            p1_alive = sum(1 for v in player1_vehicles if v.alive)
+            p2_alive = sum(1 for v in player2_vehicles if v.alive)
+
+            if p1_alive == 0 and p2_alive > 0:
+                winner = winner_font.render("¡GANA JUGADOR 2!", True, (100, 100, 255))
+            elif p2_alive == 0 and p1_alive > 0:
+                winner = winner_font.render("¡GANA JUGADOR 1!", True, (255, 100, 100))
+            elif p1_score > p2_score:
                 winner = winner_font.render("¡GANA JUGADOR 1!", True, (255, 100, 100))
             elif p2_score > p1_score:
                 winner = winner_font.render("¡GANA JUGADOR 2!", True, (100, 100, 255))

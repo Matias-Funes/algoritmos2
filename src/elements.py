@@ -135,12 +135,13 @@ class Merchandise:
 
 class Mine:
     def __init__(self, x, y, mine_type):
+        # La x, y que recibe es el CENTRO de la celda
         self.x = x
         self.y = y
         self.type = mine_type
         self.active = True
         self.toggle_timer = 0
-        self.size = 10
+        self.size = constants.MINE_SIZE
         self.radius = constants.MINE_TYPES[self.type]["radius"]
         
         # Cargar o crear imagen
@@ -169,6 +170,9 @@ class Mine:
                 pygame.draw.circle(self.image, (255, 0, 255), (self.size//2, self.size//2), self.size//2)
                 pygame.draw.circle(self.image, (200, 0, 200), (self.size//2, self.size//2), self.size//2-1, 1)
                 pygame.draw.circle(self.image, (255, 255, 0), (self.size//2, self.size//2), 2)
+        
+        # El rect se usa para el blit, centrado en la posición
+        self.rect = self.image.get_rect(center=(x, y))
 
     def update(self):
         """
@@ -188,49 +192,93 @@ class Mine:
         if not self.active:
             return
             
-        # Dibujar la mina
-        screen.blit(self.image, (self.x, self.y))
+        # Dibujar la mina (usando el rect centrado)
+        screen.blit(self.image, self.rect)
         
         # Debug: visualizar área de efecto
         if constants.DEBUG_MODE:
             radius = self.radius
-            cx = self.x + self.size/2
-            cy = self.y + self.size/2
+            # Usamos self.x y self.y que ya son el centro
+            cx, cy = self.x, self.y
             
             # Color semi-transparente según tipo
             color = constants.MINE_COLORS[self.type]
             
+            # Crear una superficie para el círculo con transparencia
+            s = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
+            
             if self.type in ["O1", "O2", "G1"]:
                 # Área circular
-                pygame.draw.circle(screen, color[:3], (int(cx), int(cy)), radius, 1)
+                pygame.draw.circle(s, color, (radius, radius), radius)
                 
             elif self.type == "T1":
                 # Área horizontal
-                pygame.draw.rect(screen, color[:3],
-                               (cx - radius, cy - 2, radius * 2, 4), 1)
+                pygame.draw.rect(s, color, (0, radius - 2, radius * 2, 4))
                 
             elif self.type == "T2":
                 # Área vertical
-                pygame.draw.rect(screen, color[:3],
-                               (cx - 2, cy - radius, 4, radius * 2), 1)
+                pygame.draw.rect(s, color, (radius - 2, 0, 4, radius * 2))
+
+            screen.blit(s, (cx - radius, cy - radius))
 
     def check_collision(self, px, py):
         """Verifica si un punto está dentro del área de la mina"""
         if not self.active:
             return False
             
-        cx = self.x + self.size/2
-        cy = self.y + self.size/2
+        # Usamos self.x y self.y que ya son el centro de la mina.
+        cx, cy = self.x, self.y
         
+        # Para las minas T1 y T2, el grosor del área de efecto es pequeño.
+        # Asumimos un grosor de 4px, por lo que la mitad es 2.
+        # Sería ideal tener esto como una constante, ej: constants.MINE_THICKNESS / 2
+        half_thickness = 2
+
         if self.type in ["O1", "O2", "G1"]:
+            # Colisión circular: la distancia al centro es menor o igual al radio.
             return math.hypot(px - cx, py - cy) <= self.radius
         elif self.type == "T1":
-            return abs(py - cy) <= 2 and abs(px - cx) <= self.radius
+            # Colisión rectangular horizontal.
+            in_horizontal_range = abs(px - cx) <= self.radius
+            in_vertical_band = abs(py - cy) <= half_thickness
+            return in_horizontal_range and in_vertical_band
         elif self.type == "T2":
-            return abs(px - cx) <= 2 and abs(py - cy) <= self.radius
+            # Colisión rectangular vertical.
+            in_vertical_range = abs(py - cy) <= self.radius
+            in_horizontal_band = abs(px - cx) <= half_thickness
+            return in_vertical_range and in_horizontal_band
         
         return False
-    
+
+    def explode(self, world):
+        """
+        Lógica de explosión: daña el terreno y crea efectos visuales.
+        """
+        print(f"¡BOOM! Mina {self.type} explotó en ({self.x}, {self.y})")
+        
+        # 1. Marcar celdas del grid como destruidas (0)
+        # Iteramos sobre un área cuadrada alrededor de la mina para optimizar
+        center_gx, center_gy = world.pixel_to_cell(self.x, self.y)
+        radius_in_cells = math.ceil(self.radius / constants.TILE)
+        
+        for gy in range(center_gy - radius_in_cells, center_gy + radius_in_cells + 1):
+            for gx in range(center_gx - radius_in_cells, center_gx + radius_in_cells + 1):
+                # Asegurarse que la celda está en el mapa
+                if 0 <= gx < constants.GRID_WIDTH and 0 <= gy < constants.GRID_HEIGHT:
+                    # Coordenadas del centro de la celda
+                    px, py = world.cell_to_pixel_center(gx, gy)
+                    
+                    # Si el centro de la celda está en el radio, la destruimos
+                    if self.check_collision(px, py):
+                        world.grid[gy][gx] = 0 # Marcar como no caminable
+                        
+                        # 2. Crear efecto de fuego en esa celda
+                        fire_x, fire_y = world.cell_to_pixel(gx, gy)
+                        world.effects.append(FireEffect(fire_x, fire_y))
+
+        # 3. Desactivar la mina
+        self.active = False
+
     def get_state(self):
         """Devuelve un diccionario simple para guardar."""
         return {
@@ -241,3 +289,38 @@ class Mine:
             "toggle_timer": self.toggle_timer,
             "radius": self.radius
         }
+
+
+class FireEffect:
+    """
+    Un efecto visual de fuego que dura un tiempo determinado.
+    """
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.lifetime = 45  # Duración en frames (ej. 0.75 seg a 60fps)
+        
+        try:
+            # Usamos una sola imagen de fuego para todos
+            if not hasattr(FireEffect, 'image'):
+                path = os.path.join("assets", "images", "objects", "fire.png")
+                image = pygame.image.load(path).convert_alpha()
+                FireEffect.image = pygame.transform.scale(image, (constants.TILE, constants.TILE))
+        except Exception as e:
+            print(f"Error cargando fire.png: {e}")
+            # Fallback a un cuadrado naranja si falla la carga
+            FireEffect.image = pygame.Surface((constants.TILE, constants.TILE))
+            FireEffect.image.fill((255, 100, 0))
+
+    def update(self):
+        self.lifetime -= 1
+        return self.lifetime > 0
+
+    def draw(self, screen):
+        # Efecto de parpadeo y desvanecimiento
+        alpha = int(255 * (self.lifetime / 45))
+        if self.lifetime % 10 < 5: # Parpadeo
+             alpha = max(0, alpha - 100)
+        
+        self.image.set_alpha(alpha)
+        screen.blit(self.image, (self.x, self.y))

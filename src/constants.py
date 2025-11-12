@@ -21,7 +21,7 @@ MERCH_COUNTS = {
     "medicine": 10,   # Medicamentos
     "weapons": 10     # Armamentos
 }# Tamaños
-WIDTH, HEIGHT = 1300, 700
+WIDTH, HEIGHT = 900, 600
 # Panel de Control Fijo (UI)
 UI_PANEL_HEIGHT = 80  # Altura de la barra de botones (puedes ajustarla)
 UI_PANEL_Y = HEIGHT - UI_PANEL_HEIGHT # Posición Y donde empieza el panel
@@ -35,6 +35,7 @@ GRID_HEIGHT = GAME_WORLD_HEIGHT // TILE
 TREE = 0.9*TILE
 PERSON = 0.9*TILE
 MERCH_SIZE = 0.9*TILE
+MINE_SIZE = 0.9*TILE
 
 # Tamaños de vehículos (como fracción de TILE)
 VEHICLE_SIZES = {
@@ -42,6 +43,14 @@ VEHICLE_SIZES = {
     "moto": 0.75 * TILE,      # Moto: 75% de TILE (más pequeña)
     "camion": 0.95 * TILE,    # Camión: 95% de TILE (más grande)
     "auto": 0.80 * TILE       # Auto: 80% de TILE
+}
+
+# Límites de carga de vehículos (cuántos recursos pueden llevar)
+VEHICLE_CARGO_LIMITS = {
+    "jeep": 3,
+    "moto": 1,
+    "camion": 5,
+    "auto": 2
 }
 
 # Tamaño de celda (tile) usado por la grid
@@ -72,11 +81,11 @@ MERCH_COUNTS = {
 
 # Tipos de minas y sus radios
 MINE_TYPES = {
-    "O1": {"radius": 10, "type": "circular", "static": True},
-    "O2": {"radius": 5, "type": "circular", "static": True},
-    "T1": {"radius": 10, "type": "horizontal", "static": True},
-    "T2": {"radius": 5, "type": "vertical", "static": True},
-    "G1": {"radius": 7, "type": "circular", "static": False}
+    "O1": {"radius": 10 * TILE, "type": "circular", "static": True},
+    "O2": {"radius": 5 * TILE, "type": "circular", "static": True},
+    "T1": {"radius": 10 * TILE, "type": "horizontal", "static": True},
+    "T2": {"radius": 5 * TILE, "type": "vertical", "static": True},
+    "G1": {"radius": 7 * TILE, "type": "circular", "static": False}
 }
 
 # Cantidad de minas por tipo
@@ -101,4 +110,4 @@ MINE_COLORS = {
 }
 
 # Modo de depuración
-DEBUG_MODE = True  # Cambia a False para desactivar visualización de áreas de minas
+DEBUG_MODE = False  # Cambia a False para desactivar visualización de áreas de minas

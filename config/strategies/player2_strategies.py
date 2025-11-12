@@ -4,12 +4,23 @@ import math
 import random
 from src import constants
 
+# --------------------------------------------------------------------------------
+# MODO KAMIKAZE: Si es True, todos los vehículos irán directos a la mina más cercana
+# --------------------------------------------------------------------------------
+KAMIKAZE_MODE = False
 
 # -------------------------------
 # Estrategia para JEEP - Agresiva (ataca enemigos)
 # -------------------------------
 class AggressiveJeepStrategy(BaseStrategy):
     def decide(self, vehicle, world):
+        # MODO KAMIKAZE
+        if KAMIKAZE_MODE:
+            mine = self.find_nearest_mine(vehicle, world)
+            if mine:
+                mine_gx, mine_gy = world.pixel_to_cell(mine.x, mine.y)
+                return {"type": "move", "target": (mine_gx, mine_gy)}
+
         # PRIORIDAD 1: Evasión de minas
         escape = self.evade_mines(vehicle, world)
         if escape:
@@ -57,6 +68,13 @@ class AggressiveJeepStrategy(BaseStrategy):
 # -------------------------------
 class FastMotoStrategy(BaseStrategy):
     def decide(self, vehicle, world):
+        # MODO KAMIKAZE
+        if KAMIKAZE_MODE:
+            mine = self.find_nearest_mine(vehicle, world)
+            if mine:
+                mine_gx, mine_gy = world.pixel_to_cell(mine.x, mine.y)
+                return {"type": "move", "target": (mine_gx, mine_gy)}
+
         # PRIORIDAD 1: Evasión de minas
         escape = self.evade_mines(vehicle, world)
         if escape:
@@ -122,6 +140,13 @@ class FastMotoStrategy(BaseStrategy):
 # -------------------------------
 class SupportCamionStrategy(BaseStrategy):
     def decide(self, vehicle, world):
+        # MODO KAMIKAZE
+        if KAMIKAZE_MODE:
+            mine = self.find_nearest_mine(vehicle, world)
+            if mine:
+                mine_gx, mine_gy = world.pixel_to_cell(mine.x, mine.y)
+                return {"type": "move", "target": (mine_gx, mine_gy)}
+
         # PRIORIDAD 1: Evasión de minas
         escape = self.evade_mines(vehicle, world)
         if escape:
@@ -179,6 +204,13 @@ class SupportCamionStrategy(BaseStrategy):
 # -------------------------------
 class BalancedAutoStrategy(BaseStrategy):
     def decide(self, vehicle, world):
+        # MODO KAMIKAZE
+        if KAMIKAZE_MODE:
+            mine = self.find_nearest_mine(vehicle, world)
+            if mine:
+                mine_gx, mine_gy = world.pixel_to_cell(mine.x, mine.y)
+                return {"type": "move", "target": (mine_gx, mine_gy)}
+
         # PRIORIDAD 1: Evasión de minas
         escape = self.evade_mines(vehicle, world)
         if escape:
@@ -220,6 +252,7 @@ class BalancedAutoStrategy(BaseStrategy):
             dist_to_person = abs(vehicle.gx - person_gx) + abs(vehicle.gy - person_gy)
             if dist_to_person < 5:
                 return {"type": "collect", "target": person}
+            return {"type": "collect", "target": person}
 
         # PRIORIDAD 5: Buscar medicamentos
         medicine = self.find_nearest_resource(vehicle, world, ["medicine"])
@@ -228,6 +261,7 @@ class BalancedAutoStrategy(BaseStrategy):
             dist_to_med = abs(vehicle.gx - med_gx) + abs(vehicle.gy - med_gy)
             if dist_to_med < 4:
                 return {"type": "collect", "target": medicine}
+            return {"type": "collect", "target": medicine}
 
         # PRIORIDAD 6: Buscar cualquier recurso
         resource = self.find_nearest_resource(vehicle, world, vehicle.allowed_cargo)

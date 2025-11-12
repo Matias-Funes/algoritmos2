@@ -48,6 +48,7 @@ class World:
         self.mines = []
         self.resources = []
         self.vehicles = []
+        self.effects = [] # Lista para efectos visuales (fuego, etc.)
 
     # Funcion para verificar si una celda esta dentro de alguna base 
     def is_in_base_area(self, gx, gy):
@@ -266,6 +267,8 @@ class World:
                             break
                         
                     if not too_close:
+                        # Usamos el CENTRO de la celda para la posición de la mina
+                        px, py = self.cell_to_pixel_center(gx, gy)
                         self.mines.append(Mine(px, py, mine_type))
                         self.grid[gy][gx] = 4
                         break
@@ -310,6 +313,10 @@ class World:
         """Convierte celda a píxeles (esquina superior izquierda)"""
         return gx * constants.TILE, gy * constants.TILE
 
+    def cell_to_pixel_center(self, gx, gy):
+        """Convierte celda a píxeles (centro de la celda)"""
+        return (gx * constants.TILE) + constants.TILE // 2, (gy * constants.TILE) + constants.TILE // 2
+
     def is_walkable(self, gx, gy):
         """
         Verifica si una celda es caminable para el ALGORITMO A*.
@@ -319,7 +326,7 @@ class World:
             
         # Es caminable si es 0 (suelo), 2 (persona) o 3 (mercancía).
         # NO es caminable si es 1 (árbol) o 4 (mina).
-        return self.grid[gy][gx] in (0, 2, 3)
+        return self.grid[gy][gx] in (0, 2, 3, 4)
 
     def get_neighbors(self, gx, gy):
         """Obtiene celdas adyacentes válidas"""
@@ -346,6 +353,10 @@ class World:
             m.draw(screen)
         for mine in self.mines:
             mine.draw(screen)
+            
+        # Efectos (fuego, etc.)
+        for effect in self.effects:
+            effect.draw(screen)
 
     def draw_premium_hud(self, screen, player1_vehicles, player2_vehicles, game_time):
         """HUD moderno y mejorado"""
@@ -415,10 +426,10 @@ class World:
         
         # Tipos de vehículos con iconos
         types = [
-            ("J", sum(1 for v in player1_vehicles if v.vehicle_type == "jeep" and v.alive), 3),
-            ("M", sum(1 for v in player1_vehicles if v.vehicle_type == "moto" and v.alive), 2),
-            ("C", sum(1 for v in player1_vehicles if v.vehicle_type == "camion" and v.alive), 2),
-            ("A", sum(1 for v in player1_vehicles if v.vehicle_type == "auto" and v.alive), 3)
+            ("Jeep", sum(1 for v in player1_vehicles if v.vehicle_type == "jeep" and v.alive), 3),
+            ("Moto", sum(1 for v in player1_vehicles if v.vehicle_type == "moto" and v.alive), 2),
+            ("Cam", sum(1 for v in player1_vehicles if v.vehicle_type == "camion" and v.alive), 2),
+            ("Auto", sum(1 for v in player1_vehicles if v.vehicle_type == "auto" and v.alive), 3)
         ]
         
         x_offset = 20
@@ -465,10 +476,10 @@ class World:
         
         # Tipos
         types = [
-            ("J", sum(1 for v in player2_vehicles if v.vehicle_type == "jeep" and v.alive), 3),
-            ("M", sum(1 for v in player2_vehicles if v.vehicle_type == "moto" and v.alive), 2),
-            ("C", sum(1 for v in player2_vehicles if v.vehicle_type == "camion" and v.alive), 2),
-            ("A", sum(1 for v in player2_vehicles if v.vehicle_type == "auto" and v.alive), 3)
+            ("Jeep", sum(1 for v in player2_vehicles if v.vehicle_type == "jeep" and v.alive), 3),
+            ("Moto", sum(1 for v in player2_vehicles if v.vehicle_type == "moto" and v.alive), 2),
+            ("Cam", sum(1 for v in player2_vehicles if v.vehicle_type == "camion" and v.alive), 2),
+            ("Auto", sum(1 for v in player2_vehicles if v.vehicle_type == "auto" and v.alive), 3)
         ]
         
         x_offset = x_base

@@ -5,12 +5,10 @@ from . import pathfinding
 
 
 class Vehicle:
-    def __init__(self, id, x, y, base_position, vehicle_type, max_trips, allowed_cargo, color):
+    def __init__(self, id, gx, gy, base_position, vehicle_type, max_trips, allowed_cargo, color):
         self.id = id
-        # Asumimos que x, y iniciales están alineados, pero los calculamos por si acaso.
-        self.gx = int(x) // constants.TILE
-        self.gy = int(y) // constants.TILE
-        
+        self.gx = gx
+        self.gy = gy
         self.x = self.gx * constants.TILE + constants.TILE // 2
         self.y = self.gy * constants.TILE + constants.TILE // 2
 
@@ -41,6 +39,9 @@ class Vehicle:
         self.returning_to_base = False
         self.at_base = True # Empieza en la base
         self.forced_return = False
+        
+        self.wait_timer = 0 # Temporizador para esperar si el camino está bloqueado
+        self.evasion_timer = 0 # Temporizador para forzar un estado de evasión
         
         self.size = self._get_vehicle_size()
         self.image = self._create_beautiful_sprite()
@@ -282,6 +283,12 @@ class Vehicle:
         if not self.alive:
             return False # No hubo cambio lógico
 
+        # --- Lógica de Temporizadores ---
+        if self.wait_timer > 0:
+            self.wait_timer -= 1
+            return True # Es un tick lógico, pero estamos esperando
+        if self.evasion_timer > 0:
+            self.evasion_timer -= 1
         # 1. ¿Estamos quietos? (En el centro de una celda)
         if self.is_at_visual_target():
             
@@ -323,7 +330,7 @@ class Vehicle:
                         self.set_path_to_base(world)
             
             # Siempre intentar tomar una decisión si no tenemos path
-            if not self.path and not self.forced_return and not self.returning_to_base:
+            if not self.path and not self.forced_return and not self.returning_to_base and self.evasion_timer == 0:
                 if self.strategy:
                     action = self.strategy.decide(self, world)
                     self.execute_action(action, world)
@@ -340,9 +347,9 @@ class Vehicle:
                     self.target_pixel_x = next_gx * constants.TILE + constants.TILE // 2
                     self.target_pixel_y = next_gy * constants.TILE + constants.TILE // 2
                 else:
-                    # 🔧 Si la celda no es segura, buscar alternativa
-                    self.path.clear()
-                    # Forzar nueva decisión en el próximo tick
+                    # 🔧 Si la celda no es segura, ESPERAR en lugar de borrar la ruta.
+                    self.wait_timer = 5 # Espera 5 ticks lógicos
+                    self.path.clear() # Borramos la ruta para forzar un recalculo DESPUÉS de esperar
             
             return True # Fue un tick LÓGICO (tomamos decisiones o esperamos)
 
@@ -440,6 +447,11 @@ class Vehicle:
             # Asumimos que el target es (gx, gy)
             target_cell = target
         
+        elif action_type == "evade" and target:
+            target_cell = target
+            # Al evadir, activamos el temporizador para evitar oscilaciones
+            self.evasion_timer = 20 # 20 ticks lógicos en estado de evasión
+
         elif action_type == "collect" and target:
             # Target es un objeto recurso. Convertimos sus píxeles a celda.
             target_gx = int(target.x) // constants.TILE

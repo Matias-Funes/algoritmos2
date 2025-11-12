@@ -88,7 +88,7 @@ class BaseStrategy:
                 continue
             mine_center_x = mine.x + mine.size / 2
             mine_center_y = mine.y + mine.size / 2
-            dist = math.hypot(vehicle.x - mine_center_x, vehicle.y - mine_center_y)
+            dist = abs(vehicle.x - mine_center_x) + abs(vehicle.y - mine_center_y)
             if dist < mine.radius + safety_margin:
                 return True
         return False
@@ -114,7 +114,7 @@ class BaseStrategy:
             # Usamos el centro de la mina en píxeles
             mine_center_x = mine.x + constants.TILE // 2 
             mine_center_y = mine.y + constants.TILE // 2
-            dist_px = math.hypot(vehicle.x - mine_center_x, vehicle.y - mine_center_y)
+            dist_px = abs(vehicle.x - mine_center_x) + abs(vehicle.y - mine_center_y)
             
             if dist_px < min_dist_pixels:
                 min_dist_pixels = dist_px
@@ -132,11 +132,11 @@ class BaseStrategy:
             # Vector de escape (en píxeles)
             dx = vehicle.x - mine_center_x
             dy = vehicle.y - mine_center_y
-            dist_px = math.hypot(dx, dy)
+            dist_px = abs(dx) + abs(dy)
             
             if dist_px < 1: 
                 dx, dy = random.uniform(-1, 1), random.uniform(-1, 1)
-                dist_px = math.hypot(dx, dy)
+                dist_px = abs(dx) + abs(dy)
             
             # Punto de escape en píxeles (a 4 celdas de distancia)
             escape_dist = constants.TILE * 4

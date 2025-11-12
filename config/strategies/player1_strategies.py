@@ -10,7 +10,7 @@ class JeepStrategy(BaseStrategy):
         # PRIORIDAD 1: Evasión de minas
         escape = self.evade_mines(vehicle, world)
         if escape:
-            return {"type": "move", "target": escape}
+            return {"type": "evade", "target": escape}
 
         # PRIORIDAD 2: Regresar a base si es necesario
         if self.should_return_to_base(vehicle):
@@ -21,6 +21,9 @@ class JeepStrategy(BaseStrategy):
             resource = self.find_nearest_resource(vehicle, world, vehicle.allowed_cargo)
             if resource:
                 return {"type": "collect", "target": resource}
+            else:
+                # Si no hay nada cerca, sal a explorar.
+                return {"type": "move", "target": self.random_exploration(world)}
 
         # PRIORIDAD 3: Buscar recursos de alto valor
         resource = self.find_high_value_resource(
@@ -49,7 +52,7 @@ class MotoStrategy(BaseStrategy):
         # PRIORIDAD 1: Evasión de minas
         escape = self.evade_mines(vehicle, world)
         if escape:
-            return {"type": "move", "target": escape}
+            return {"type": "evade", "target": escape}
 
         # PRIORIDAD 2: Si tiene persona, regresar inmediatamente
         if len(vehicle.cargo) > 0:
@@ -60,6 +63,9 @@ class MotoStrategy(BaseStrategy):
             resource = self.find_nearest_resource(vehicle, world, ["person"])
             if resource:
                 return {"type": "collect", "target": resource}
+            else:
+                # Si no hay personas, explora.
+                return {"type": "move", "target": self.random_exploration(world)}
 
         # PRIORIDAD 3: Buscar persona más cercana
         resource = self.find_nearest_resource(vehicle, world, ["person"])
@@ -102,7 +108,7 @@ class CamionStrategy(BaseStrategy):
         # PRIORIDAD 1: Evasión de minas
         escape = self.evade_mines(vehicle, world)
         if escape:
-            return {"type": "move", "target": escape}
+            return {"type": "evade", "target": escape}
 
         # PRIORIDAD 2: Regresar si está lleno o sin viajes
         if len(vehicle.cargo) >= 5 or vehicle.trips_left == 0:
@@ -113,6 +119,9 @@ class CamionStrategy(BaseStrategy):
             resource = self.find_nearest_resource(vehicle, world, vehicle.allowed_cargo)
             if resource:
                 return {"type": "collect", "target": resource}
+            else:
+                # Si no hay nada cerca, sal a explorar.
+                return {"type": "move", "target": self.random_exploration(world)}
 
         # PRIORIDAD 3: Buscar recursos valiosos
         resource = self.find_high_value_resource(
@@ -141,7 +150,7 @@ class AutoStrategy(BaseStrategy):
         # PRIORIDAD 1: Evasión de minas
         escape = self.evade_mines(vehicle, world)
         if escape:
-            return {"type": "move", "target": escape}
+            return {"type": "evade", "target": escape}
 
         # PRIORIDAD 2: Si tiene carga, regresar
         if len(vehicle.cargo) > 0:
@@ -152,6 +161,9 @@ class AutoStrategy(BaseStrategy):
             resource = self.find_nearest_resource(vehicle, world, vehicle.allowed_cargo)
             if resource:
                 return {"type": "collect", "target": resource}
+            else:
+                # Si no hay nada cerca, sal a explorar.
+                return {"type": "move", "target": self.random_exploration(world)}
 
         # PRIORIDAD 3: Buscar personas primero
         person = self.find_nearest_resource(vehicle, world, ["person"])

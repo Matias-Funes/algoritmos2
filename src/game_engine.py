@@ -12,7 +12,7 @@ import pickle
 import datetime
 import os 
 import glob
-from .elements import Person, Merchandise, Mine
+from .elements import Person, Merchandise, Mine, FireEffect
 
 # Convierte los nombres de string (guardados) de nuevo a Clases (para cargar)
 STRATEGY_MAP = {
@@ -519,6 +519,57 @@ def main():
         game_time = data.get('game_time', 0)
     
     
+    def handle_mine_explosion(mine):
+        """
+        Gestiona la lógica completa de la explosión de una mina,
+        afectando a toda el área y a todas las entidades.
+        """
+        print(f"¡BOOM! Mina {mine.type} explotó en ({mine.x}, {mine.y})")
+        create_explosion(mine.x, mine.y, (255, 100, 0))
+
+        # 1. Encontrar todas las celdas afectadas por el radio
+        affected_cells = set() # Usar un set para evitar duplicados
+        center_gx, center_gy = world.pixel_to_cell(mine.x, mine.y)
+        radius_in_cells = math.ceil(mine.radius / constants.TILE)
+
+        for gy_offset in range(-radius_in_cells, radius_in_cells + 1):
+            for gx_offset in range(-radius_in_cells, radius_in_cells + 1):
+                gx, gy = center_gx + gx_offset, center_gy + gy_offset
+                
+                if 0 <= gx < constants.GRID_WIDTH and 0 <= gy < constants.GRID_HEIGHT:
+                    px, py = world.cell_to_pixel_center(gx, gy)
+                    if mine.check_collision(px, py):
+                        affected_cells.add((gx, gy))
+
+        # 2. Identificar todas las entidades a ser destruidas
+        vehicles_to_kill = []
+        for v in world.vehicles:
+            if v.alive and (v.gx, v.gy) in affected_cells:
+                vehicles_to_kill.append(v)
+
+        resources_to_remove = []
+        for r in world.resources:
+            res_gx, res_gy = world.pixel_to_cell(r.x, r.y)
+            if (res_gx, res_gy) in affected_cells:
+                resources_to_remove.append(r)
+
+        # 3. Destruir las entidades identificadas
+        for v in vehicles_to_kill:
+            v.die()
+            create_explosion(v.x, v.y, v.color)
+
+        for r in resources_to_remove:
+            world.remove_resource(r)
+
+        # 4. Limpiar la grid y añadir efectos de fuego
+        for gx, gy in affected_cells:
+            world.grid[gy][gx] = 0 # Asegura que la celda quede vacía
+            fire_x, fire_y = world.cell_to_pixel(gx, gy)
+            world.effects.append(FireEffect(fire_x, fire_y))
+
+        # 5. Desactivar la mina
+        mine.active = False
+
     def run_game_logic_tick():
         """
         Ejecuta UN SOLO fotograma (tick) de la lógica del juego.
@@ -527,18 +578,19 @@ def main():
         nonlocal game_time, current_state, stats_saved_this_game, replay_buffer
         nonlocal last_p1_alive, last_p2_alive
         
-        # El tick empieza asumiendo que es SÓLO animación
         a_logical_update_happened = False
-        
         game_time += 1
         
-        # 1. Actualizar minas (ahora SÍ devuelve si algo cambió)
         if world.update_g1_mines():
              a_logical_update_happened = True
 
-        # 2. LÓGICA DE FIN DE JUEGO (RECURSOS)
+        for effect in world.effects[:]:
+            if not effect.update():
+                world.effects.remove(effect)
+
+        # 1. LÓGICA DE FIN DE JUEGO (RECURSOS)
         if len(world.resources) == 0 and not hasattr(world, 'ending_phase'):
-            a_logical_update_happened = True # Iniciar el fin es un evento lógico
+            a_logical_update_happened = True
             world.ending_phase = True
             world.ending_timer = 0
             for vehicle in world.vehicles:
@@ -551,7 +603,6 @@ def main():
             
             if all_at_base or world.ending_timer > 300: 
                 if not stats_saved_this_game:
-                    print("Guardando estadísticas de la partida (recursos)...")
                     p1_score = sum(v.score for v in player1_vehicles)
                     p2_score = sum(v.score for v in player2_vehicles)
                     winner = "Empate"
@@ -561,78 +612,73 @@ def main():
                     stats_saved_this_game = True
                 
                 if replay_buffer:
-                    print("Guardando Replay (fin de recursos)...")
                     replay_name = f"Replay_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.pkl"
                     try:
-                        with open(replay_name, 'wb') as f:
-                            pickle.dump(replay_buffer, f)
-                        print(f"Replay guardado exitosamente en {replay_name}")
-                    except Exception as e:
-                        print(f"Error al guardar el replay: {e}")
+                        with open(replay_name, 'wb') as f: pickle.dump(replay_buffer, f)
+                    except Exception as e: print(f"Error al guardar el replay: {e}")
                     replay_buffer.clear()
                 
                 current_state = GameState.GAME_OVER
-                return True # Fin del juego es un evento lógico
+                return True
+
+        # 2. COLISIONES CON MINAS
+        mines_to_explode = []
+        for mine in world.mines:
+            if not mine.active: continue
+            mine_gx, mine_gy = world.pixel_to_cell(mine.x, mine.y)
+            for v in world.vehicles:
+                if v.alive and v.gx == mine_gx and v.gy == mine_gy:
+                    if mine not in mines_to_explode:
+                        mines_to_explode.append(mine)
+                    break 
+        
+        if mines_to_explode:
+            a_logical_update_happened = True
+            for mine in mines_to_explode:
+                handle_mine_explosion(mine)
+            world.mines = [m for m in world.mines if m.active]
 
         # 3. ACTUALIZAR VEHÍCULOS
         for vehicle in world.vehicles:
             if vehicle.alive:
-                if vehicle.update(world): # Devuelve True si fue un tick LÓGICO
+                if vehicle.update(world):
                     a_logical_update_happened = True 
         
-        # 4. DETECTAR DESTRUCCIONES
-        p1_alive = sum(1 for v in player1_vehicles if v.alive)
-        p2_alive = sum(1 for v in player2_vehicles if v.alive)
-        
-        if p1_alive < last_p1_alive:
-            a_logical_update_happened = True
-            for v in player1_vehicles:
-                if not v.alive and hasattr(v, 'last_x'):
-                    create_explosion(v.last_x, v.last_y, (255, 0, 0))
-        
-        if p2_alive < last_p2_alive:
-            a_logical_update_happened = True
-            for v in player2_vehicles:
-                if not v.alive and hasattr(v, 'last_x'):
-                    create_explosion(v.last_x, v.last_y, (0, 0, 255))
-        
-        last_p1_alive = p1_alive
-        last_p2_alive = p2_alive
-        
-        for v in world.vehicles:
-            if v.alive:
-                v.last_x = v.x
-                v.last_y = v.y
-        
-        # 5. COLISIONES FÍSICAS (ENEMIGOS)
+        # 4. COLISIONES FÍSICAS (ENEMIGOS)
         for v1 in player1_vehicles:
             if not v1.alive: continue
             v1_at_base = (v1.gx == v1.base_gx and v1.gy == v1.base_gy)
-            
             for v2 in player2_vehicles:
                 if not v2.alive: continue
                 if v1.gx == v2.gx and v1.gy == v2.gy:
                     v2_at_base = (v2.gx == v2.base_gx and v2.gy == v2.base_gy)
                     if not v1_at_base and not v2_at_base:
-                        a_logical_update_happened = True # Colisión
+                        a_logical_update_happened = True
                         create_explosion(v1.x, v1.y, (255, 128, 0)) 
                         v1.die()
                         v2.die()
 
+        # 5. DETECTAR DESTRUCCIONES (para efectos visuales)
+        p1_alive_now = sum(1 for v in player1_vehicles if v.alive)
+        p2_alive_now = sum(1 for v in player2_vehicles if v.alive)
+        if p1_alive_now < last_p1_alive or p2_alive_now < last_p2_alive:
+            a_logical_update_happened = True
+        last_p1_alive = p1_alive_now
+        last_p2_alive = p2_alive_now
+        
         # 6. GRABAR FOTOGRAMA PARA REPLAY
         if a_logical_update_happened:
             try:
                 replay_buffer.append(get_full_game_state())
             except Exception as e:
                 print(f"Error al grabar fotograma de replay: {e}")
-        # Guardar el estado actual para poder retroceder
+        
         try:
             frame_history.append(get_full_game_state())
             current_frame_index = len(frame_history) - 1
         except Exception as e:
             print(f"Error al guardar frame del historial: {e}")
 
-        # 7. Devolver si fue un tick lógico
         return a_logical_update_happened
     
     while True:

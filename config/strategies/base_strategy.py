@@ -156,6 +156,21 @@ class BaseStrategy:
         
         return None
 
+    def find_nearest_mine(self, vehicle, world):
+        """
+        Retorna la mina activa más cercana.
+        """
+        min_dist = float("inf")
+        best_mine = None
+        for mine in world.mines:
+            if mine.active:
+                mine_gx, mine_gy = world.pixel_to_cell(mine.x, mine.y)
+                dist = abs(vehicle.gx - mine_gx) + abs(vehicle.gy - mine_gy)
+                if dist < min_dist:
+                    min_dist = dist
+                    best_mine = mine
+        return best_mine
+
     def random_exploration(self, world):
         """
         Devuelve una coordenada de CELDA (gx, gy) aleatoria válida para exploración.
@@ -182,15 +197,8 @@ class BaseStrategy:
         if vehicle.trips_left <= 0:
             return True
         
-        # Si tiene mucha carga
-        cargo_limit = {
-            "jeep": 3,
-            "moto": 1,
-            "camion": 5,
-            "auto": 2
-        }
-        
-        max_cargo = cargo_limit.get(vehicle.vehicle_type, 2)
+        # Si tiene mucha carga (usa la configuración de constants.py)
+        max_cargo = constants.VEHICLE_CARGO_LIMITS.get(vehicle.vehicle_type, 2)
         if len(vehicle.cargo) >= max_cargo:
             return True
         

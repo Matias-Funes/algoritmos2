@@ -376,8 +376,8 @@ class Vehicle:
              return False
                 
         # 3. ¿Hay una mina?
-        if self.check_mine_collision(gx, gy, world):
-             return False
+        # if self.check_mine_collision(gx, gy, world):
+        #      return False
         
         # 4. ¿Hay un ALIADO ocupando esa celda?
         for v in world.vehicles:

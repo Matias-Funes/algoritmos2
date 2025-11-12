@@ -37,3 +37,5 @@ dist/
 # Ignorar base de datos local
 game_data.db
 Partida_Guardada_*.pkl
+# Ignorar archivos de replays
+Replay_*.pkl

@@ -80,79 +80,11 @@ class BaseStrategy:
         return min_dist
 
     def is_near_mine(self, vehicle, world, safety_margin=15):
-        """
-        Verifica si el vehículo está peligrosamente cerca de alguna mina.
-        """
-        for mine in world.mines:
-            if not mine.active:
-                continue
-            mine_center_x = mine.x + mine.size / 2
-            mine_center_y = mine.y + mine.size / 2
-            dist = abs(vehicle.x - mine_center_x) + abs(vehicle.y - mine_center_y)
-            if dist < mine.radius + safety_margin:
-                return True
+
         return False
 
     def evade_mines(self, vehicle, world):
-        """
-        Calcula una celda (gx, gy) para alejarse de la mina más cercana.
-        Retorna una tupla (gx, gy) o None si está seguro.
-        """
-        if not world.mines:
-            return None
 
-        # Encontrar la mina activa más cercana (en píxeles, para el radio)
-        nearest_mine = None
-        min_dist_pixels = float("inf")
-        
-        # Usamos la posición visual (x, y) del vehículo SÓLO para esta
-        # comprobación de seguridad de "píxel" en tiempo real.
-        for mine in world.mines:
-            if not mine.active:
-                continue
-            
-            # Usamos el centro de la mina en píxeles
-            mine_center_x = mine.x + constants.TILE // 2 
-            mine_center_y = mine.y + constants.TILE // 2
-            dist_px = abs(vehicle.x - mine_center_x) + abs(vehicle.y - mine_center_y)
-            
-            if dist_px < min_dist_pixels:
-                min_dist_pixels = dist_px
-                nearest_mine = mine
-
-        if not nearest_mine:
-            return None
-
-        # Si está muy cerca (en píxeles), escapar
-        danger_threshold = nearest_mine.radius + 20 # margen de seguridad
-        mine_center_x = nearest_mine.x + constants.TILE // 2
-        mine_center_y = nearest_mine.y + constants.TILE // 2
-
-        if min_dist_pixels < danger_threshold:
-            # Vector de escape (en píxeles)
-            dx = vehicle.x - mine_center_x
-            dy = vehicle.y - mine_center_y
-            dist_px = abs(dx) + abs(dy)
-            
-            if dist_px < 1: 
-                dx, dy = random.uniform(-1, 1), random.uniform(-1, 1)
-                dist_px = abs(dx) + abs(dy)
-            
-            # Punto de escape en píxeles (a 4 celdas de distancia)
-            escape_dist = constants.TILE * 4
-            escape_x = vehicle.x + (dx / dist_px) * escape_dist
-            escape_y = vehicle.y + (dy / dist_px) * escape_dist
-            
-            # Convertir el punto de escape de píxeles a CELDA
-            escape_gx, escape_gy = world.pixel_to_cell(escape_x, escape_y)
-            
-            # Asegurar que la celda esté dentro de los límites
-            grid_h = len(world.grid)
-            grid_w = len(world.grid[0])
-            escape_gx = max(0, min(escape_gx, grid_w - 1))
-            escape_gy = max(0, min(escape_gy, grid_h - 1))
-            
-            return (escape_gx, escape_gy) # Devolvemos una celda (gx, gy)
         
         return None
 

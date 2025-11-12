@@ -9,6 +9,12 @@ from src import constants
 # --------------------------------------------------------------------------------
 KAMIKAZE_MODE = False
 
+#-----------------------------------------------------------------------------------
+# MODO AGRESIVO: Estrategias que atacan enemigos cercanos
+#-----------------------------------------------------------------------------------
+AGRESIVE_MODE = False
+
+
 # -------------------------------
 # Estrategia para JEEP - Agresiva (ataca enemigos)
 # -------------------------------
@@ -25,14 +31,14 @@ class AggressiveJeepStrategy(BaseStrategy):
         escape = self.evade_mines(vehicle, world)
         if escape:
             return {"type": "evade", "target": escape}
+        if AGRESIVE_MODE:  
+            # PRIORIDAD 2: Buscar y atacar enemigos cercanos
+            enemy = world.find_nearest_enemy(vehicle)
+            if enemy and enemy.alive:
+                dist_to_enemy = vehicle.distance_to(enemy) 
 
-        # PRIORIDAD 2: Buscar y atacar enemigos cercanos
-        enemy = world.find_nearest_enemy(vehicle)
-        if enemy and enemy.alive:
-            dist_to_enemy = vehicle.distance_to(enemy) 
-            
-            if dist_to_enemy < 15:
-                return {"type": "move", "target": (enemy.gx, enemy.gy)}
+                if dist_to_enemy < 15:
+                    return {"type": "move", "target": (enemy.gx, enemy.gy)}
 
         # PRIORIDAD 3: Regresar si tiene suficiente carga
         if len(vehicle.cargo) >= 3 or vehicle.trips_left == 0:

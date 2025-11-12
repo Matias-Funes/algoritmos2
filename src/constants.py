@@ -81,11 +81,11 @@ MERCH_COUNTS = {
 
 # Tipos de minas y sus radios
 MINE_TYPES = {
-    "O1": {"radius": 10 * TILE, "type": "circular", "static": True},
-    "O2": {"radius": 5 * TILE, "type": "circular", "static": True},
-    "T1": {"radius": 10 * TILE, "type": "horizontal", "static": True},
-    "T2": {"radius": 5 * TILE, "type": "vertical", "static": True},
-    "G1": {"radius": 7 * TILE, "type": "circular", "static": False}
+    "O1": {"radius": 5 * TILE, "type": "circular", "static": True},
+    "O2": {"radius": 2 * TILE, "type": "circular", "static": True},
+    "T1": {"radius": 5 * TILE, "type": "horizontal", "static": True},
+    "T2": {"radius": 2 * TILE, "type": "vertical", "static": True},
+    "G1": {"radius": 3 * TILE, "type": "circular", "static": False}
 }
 
 # Cantidad de minas por tipo

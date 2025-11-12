@@ -1007,7 +1007,7 @@ def main():
             # Ejecutar la lógica normal
             run_game_logic_tick()
             
-            # Guardar un snapshot del estado del juego
+            # Guardar una captura  del estado del juego
             try:
                 frame_history.append(get_lightweight_state())
                 current_frame_index = len(frame_history) - 1
